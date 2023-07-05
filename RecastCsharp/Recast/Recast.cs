@@ -689,6 +689,8 @@ namespace RecastSharp
             public ushort smin;// : 13;			//< The lower limit of the span. [Limit: < #smax]
             public ushort smax;// : 13;			//< The upper limit of the span. [Limit: <= #RC_SPAN_MAX_HEIGHT]
             public byte area;// : 6;			//< The area id assigned to the span.
+            public ushort mask;
+            public uint connection;
             public rcSpan? next = null; 			//< The next span higher up in column.
         }
         // A memory pool used for quick allocation of spans within a heightfield.
@@ -718,7 +720,7 @@ namespace RecastSharp
             public float[] bmax = new float[3];		//< The maximum bounds in world space. [(x, y, z)]
             public float cs;			//< The size of each cell. (On the xz-plane.)
             public float ch;			//< The height of each cell. (The minimum increment along the y-axis.)
-            public rcSpan?[]? spans = null;//**  //< Heightfield of spans (width*height).
+            public rcSpan[] spans = null;//**  //< Heightfield of spans (width*height).
             public rcSpanPool? pools = null;	//< Linked list of span pools.
             public rcSpan? freelist = null;	//< The next free span.
         };
