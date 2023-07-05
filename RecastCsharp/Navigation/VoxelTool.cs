@@ -198,7 +198,7 @@ namespace RecastSharp
                 Recast.rcFilterWalkableLowHeightSpans(_ctx, _buildConfig.walkableHeight, _solid);
             // 合并不可行走的体素(area为null)
             FillNullSpans();
-            
+
             // TODO: 此处放到编辑器检查
             // 若某个cell没有span，则判断为不可行走，自动填充一个最大的span
             // FillEmptyCells();
@@ -530,6 +530,181 @@ namespace RecastSharp
             _polyMeshDetail = null;
             _navMeshData = null;
             _buildSuccess = false;
+        }
+
+        public bool SaveClientData(string dirPath)
+        {
+            return true;
+        }
+
+
+        MapVoxel ConvertStruct(ushort regionSize)
+        {
+            if (!mBuildSuccess)
+                return null;
+
+            rcHeightfield hf = CopyHeightField(mSolid, mConfig.walkableClimb);
+            int w = hf.width, h = hf.height;
+            for (int y = 0; y < h; ++y)
+            {
+                for (int x = 0; x < w; ++x)
+                {
+                    rcSpan prev = null;
+                    rcSpan s = hf.spans[x + y * w];
+                    while (s != null)
+                    {
+                        if (IsWaterSpan(s) && prev != null && !IsWaterSpan(prev))
+                        {
+                            if (s.smax - s.smin < (uint)mConfig.waterThresold)
+                            {
+                                prev.next = s.next;
+                                FreeSpan(hf, s);
+                            }
+                        }
+
+                        prev = s;
+                        s = s.next;
+                    }
+                }
+            }
+
+            CalcConnections(hf, mConfig.walkableHeight, mConfig.walkableClimb, mConfig.waterThresold);
+
+            MapVoxel mv = CreateMapVoxel();
+            mv.cellSize = hf.cs;
+            mv.cellHeight = hf.ch;
+            mv.xSize = hf.width;
+            mv.ySize = (int)((hf.bmax[1] - hf.bmin[1]) / hf.ch);
+            mv.zSize = hf.height;
+
+            mv.regionSize = regionSize;
+            mv.regionWidth = (ushort)Math.Ceiling(hf.width * 1.0f / regionSize);
+            mv.regionHeight = (ushort)Math.Ceiling(hf.height * 1.0f / regionSize);
+            mv.regionNum = (ushort)(mv.regionWidth * mv.regionHeight);
+
+            int regionsNum = mv.regionNum;
+            mv.regions = new MapRegion[regionsNum];
+
+            int spanCount = rcGetHeightFieldSpanCount(GContext, hf);
+
+            for (int i = 0; i < regionsNum; i++)
+            {
+                int cx = i % mv.regionWidth * regionSize;
+                int cy = i / mv.regionWidth * regionSize;
+
+                MapRegion mr = mv.regions[i];
+                mr.cellWidth = (ushort)(cx + regionSize <= hf.width ? regionSize : hf.width - cx);
+                mr.cellHeight = (ushort)(cy + regionSize <= hf.height ? regionSize : hf.height - cy);
+
+                int cellCount = mr.cellHeight * mr.cellWidth;
+
+                VoxelSpan[] spanData = new VoxelSpan[spanCount];
+                uint[] cellSpanIndexArr = new uint[cellCount];
+                byte[] cellSpanCountArr = new byte[cellCount];
+
+                int tmpCellIdx = 0;
+                int tmpSpanIdx = 0;
+                for (int y = 0; y < mr.cellHeight; ++y)
+                {
+                    for (int x = 0; x < mr.cellWidth; ++x)
+                    {
+                        cellSpanIndexArr[tmpCellIdx] = (uint)tmpSpanIdx;
+
+                        byte spNum = 0;
+                        for (rcSpan s = hf.spans[x + cx + (y + cy) * hf.width]; s != null; s = s.next)
+                        {
+                            spanData[tmpSpanIdx].min = spNum == 0 ? (ushort)0 : s.smin;
+                            spanData[tmpSpanIdx].max = s.smax;
+                            spanData[tmpSpanIdx].mask = s.mask;
+                            spanData[tmpSpanIdx].connection = s.connection;
+                            ++tmpSpanIdx;
+                            ++spNum;
+                        }
+
+                        cellSpanCountArr[tmpCellIdx] = spNum;
+                        ++tmpCellIdx;
+                    }
+                }
+
+                uint cmpSpanNum = 0;
+                ushort[] sameCellIdxArr = new ushort[cellCount];
+                for (int c = 0; c < cellCount; ++c)
+                {
+                    sameCellIdxArr[c] = (ushort)c;
+
+                    VoxelSpan[] curSpanData =
+                        spanData.AsSpan((int)cellSpanIndexArr[c], (int)cellSpanCountArr[c]).ToArray();
+                    ushort cellSpanCount = cellSpanCountArr[c];
+                    for (int t = 0; t < c; t++)
+                    {
+                        if (cellSpanCountArr[t] == cellSpanCount
+                            && curSpanData.SequenceEqual(spanData.AsSpan((int)cellSpanIndexArr[t],
+                                (int)cellSpanCountArr[t])))
+                        {
+                            sameCellIdxArr[c] = (ushort)t;
+                            break;
+                        }
+                    }
+
+                    if (sameCellIdxArr[c] == c)
+                    {
+                        cmpSpanNum += cellSpanCount;
+                    }
+                }
+
+                if (cmpSpanNum > gMaxSpanNum)
+                {
+                    GContext.log(rcLogCategory.RC_LOG_ERROR,
+                        $"Regions Span Num Over {gMaxSpanNum}! cell: [{i % mv.regionWidth} x {i / mv.regionWidth}] num: {cmpSpanNum}");
+                    FreeMapVoxel(mv);
+                    return null;
+                }
+
+                VoxelSpan[] mrSpans = new VoxelSpan[cmpSpanNum];
+                ushort[] scells = null;
+                byte[] ccells = null;
+                if (cmpSpanNum > 255)
+                {
+                    scells = new ushort[cellCount];
+                    mr.cell.sCells = scells;
+                }
+                else
+                {
+                    ccells = new byte[cellCount];
+                    mr.cell.cCells = ccells;
+                }
+
+                ushort tmpIndex = 0;
+                for (int c = 0; c < cellCount; ++c)
+                {
+                    if (sameCellIdxArr[c] != c)
+                    {
+                        if (ccells != null)
+                            ccells[c] = ccells[sameCellIdxArr[c]];
+                        else
+                            scells[c] = scells[sameCellIdxArr[c]];
+                    }
+                    else
+                    {
+                        if (ccells != null)
+                            ccells[c] = (byte)tmpIndex;
+                        else
+                            scells[c] = tmpIndex;
+
+                        VoxelSpan[] curSpanData = spanData.AsSpan((int)cellSpanIndexArr[c], (int)cellSpanCountArr[c])
+                            .ToArray();
+                        ushort cellSpanCount = cellSpanCountArr[c];
+                        curSpanData.CopyTo(mrSpans.AsSpan((int)tmpIndex, (int)cellSpanCount));
+                        tmpIndex += cellSpanCount;
+                    }
+                }
+
+                mr.spans = mrSpans;
+                mr.spanSize = tmpIndex;
+            }
+
+            rcFreeHeightField(hf);
+            return mv;
         }
     }
 }

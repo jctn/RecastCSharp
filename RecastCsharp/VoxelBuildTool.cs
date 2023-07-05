@@ -35,7 +35,7 @@ namespace RecastSharp
 
         #region Voxel
 
-        private VoxelTool mVoxelTool = null;
+        private VoxelTool m_voxelTool = null;
 
         [FoldoutGroup("Voxel")] [LabelText("Cell Size")] [Range(0.01f, 5.0f)]
         public float cellSize = 0.5f;
@@ -80,17 +80,17 @@ namespace RecastSharp
         public void BuildVoxel()
         {
             // 设置体素生成参数
-            if (mVoxelTool == null)
+            if (m_voxelTool == null)
             {
-                mVoxelTool = new VoxelTool();
+                m_voxelTool = new VoxelTool();
             }
 
-            mVoxelTool.Reset();
-            mVoxelTool.SetBuildConfig(cellSize, cellHeight, agentHeight, climbHeight, agentRadius, maxSlope);
-            mVoxelTool.SetBoundBox(0, 0, 0, xSize, ySize, zSize);
-            mVoxelTool.filterLowHangingObstacles = filterLowHangingObstacles;
-            mVoxelTool.filterLedgeSpans = filterLedgeSpans;
-            mVoxelTool.filterWalkableLowHeightSpans = filterWalkableLowHeightSpans;
+            m_voxelTool.Reset();
+            m_voxelTool.SetBuildConfig(cellSize, cellHeight, agentHeight, climbHeight, agentRadius, maxSlope);
+            m_voxelTool.SetBoundBox(0, 0, 0, xSize, ySize, zSize);
+            m_voxelTool.filterLowHangingObstacles = filterLowHangingObstacles;
+            m_voxelTool.filterLedgeSpans = filterLedgeSpans;
+            m_voxelTool.filterWalkableLowHeightSpans = filterWalkableLowHeightSpans;
 
             minCell.Set(0, 0, 0);
             maxCell.Set(Mathf.CeilToInt(xSize / cellSize) - 1, Mathf.CeilToInt(ySize / cellHeight) - 1,
@@ -104,9 +104,9 @@ namespace RecastSharp
             }
 
             // collect meshes
-            CollectBuildVoxelMeshes(mVoxelTool, root);
+            CollectBuildVoxelMeshes(m_voxelTool, root);
 
-            if (mVoxelTool.BuildVoxel())
+            if (m_voxelTool.BuildVoxel())
             {
                 int cellx = -1, cellz = -1, maxSpanNum = -1;
                 int totalSpanNum = 0;
@@ -116,7 +116,7 @@ namespace RecastSharp
                 {
                     for (int x = minCell.x; x <= maxCell.x; ++x)
                     {
-                        int spanNum = mVoxelTool.GetSpans(x, z, SpanBuffer, SpanBufferSize);
+                        int spanNum = m_voxelTool.GetSpans(x, z, SpanBuffer, SpanBufferSize);
                         if (spanNum > maxSpanNum)
                         {
                             maxSpanNum = spanNum;
@@ -192,112 +192,107 @@ namespace RecastSharp
         [Button("Save Voxel Json Data")]
         public void SaveVoxelJsonData()
         {
-            if (mVoxelTool is not { buildSuccess: true })
-            {
-                Debug.LogError("[VoxelViewer:SaveClientData] build voxel success first.");
-                return;
-            }
-
-            //导出Json文件，分块尺寸为64*64(米)
-            string dirPath = Path.Combine(Application.dataPath, $"{mapID}_VoxelData");
-            if (AssetDatabase.IsValidFolder(dirPath))
-            {
-                AssetDatabase.DeleteAsset(dirPath);
-                AssetDatabase.Refresh();
-            }
-
-            Directory.CreateDirectory(dirPath);
-            int regionWidth = 64;
-            int regionHeight = 64;
-            int regionWidthNum = Mathf.CeilToInt(xSize / regionWidth);
-            int regionHeightNum = Mathf.CeilToInt(zSize / regionHeight);
-            int endRegionWidth = (int)(xSize % regionWidth);
-            int endRegionHeight = (int)(zSize % regionHeight);
-            int normalCellXNum = Mathf.CeilToInt(regionWidth / cellSize);
-            int normalCellZNum = Mathf.CeilToInt(regionHeight / cellSize);
-            for (int i = 0; i < regionWidthNum; i++)
-            {
-                bool isEndWidthRegion = i == regionWidthNum - 1;
-                for (int j = 0; j < regionHeightNum; j++)
-                {
-                    bool isEndHeightRegion = j == regionHeightNum - 1;
-                    int rWidth = isEndWidthRegion ? endRegionWidth : regionWidth;
-                    int rHeight = isEndHeightRegion ? endRegionHeight : regionHeight;
-                    RegionVoxelData regionVoxelData = new RegionVoxelData();
-                    regionVoxelData.startCellX = minCell.x + i * normalCellXNum;
-                    regionVoxelData.startCellZ = minCell.z + j * normalCellZNum;
-                    regionVoxelData.endCellX = regionVoxelData.startCellX + Mathf.CeilToInt(rWidth / cellSize);
-                    regionVoxelData.endCellZ = regionVoxelData.startCellZ + Mathf.CeilToInt(rHeight / cellSize);
-                    int cellNum = (regionVoxelData.endCellZ - regionVoxelData.startCellZ) *
-                                  (regionVoxelData.endCellX - regionVoxelData.startCellX);
-                    regionVoxelData.cellSpanInfos = new CellSpanInfo[cellNum];
-                    int cellIndex = 0;
-                    for (int k = regionVoxelData.startCellX; k < regionVoxelData.endCellX; k++)
-                    {
-                        for (int l = regionVoxelData.startCellZ; l < regionVoxelData.endCellZ; l++)
-                        {
-                            int spanNum = mVoxelTool.GetSpans(k, l, sSpanBuffer, sSpanBufferSize);
-                            Debug.Log($"spanNum-->{spanNum},{k},{l}");
-                            if (spanNum < 0)
-                            {
-                                Debug.Log($"IsBuildSuccess = {mVoxelTool.IsBuildSuccess()}");
-                            }
-
-                            CellSpanInfo info = new CellSpanInfo(k, l, spanNum);
-                            if (spanNum > 0)
-                            {
-                                for (int m = 0; m < spanNum; m++)
-                                {
-                                    ushort min = sSpanBuffer[m * 3];
-                                    ushort max = sSpanBuffer[m * 3 + 1];
-                                    ushort mask = sSpanBuffer[m * 3 + 2];
-                                    info.spans[m] = new VoxelSpan(min, max, mask);
-                                }
-                            }
-
-                            regionVoxelData.cellSpanInfos[cellIndex] = info;
-                            cellIndex++;
-                        }
-                    }
-
-                    File.WriteAllText(Path.Combine(dirPath, "region_" + i + "_" + j + ".json"),
-                        JsonMapper.ToJson(regionVoxelData));
-                }
-
-                GC.Collect();
-            }
+            // if (m_voxelTool is not { buildSuccess: true })
+            // {
+            //     Debug.LogError("[VoxelViewer:SaveClientData] build voxel success first.");
+            //     return;
+            // }
+            //
+            // //导出Json文件，分块尺寸为64*64(米)
+            // string dirPath = Path.Combine(Application.dataPath, $"{mapID}_VoxelData");
+            // if (AssetDatabase.IsValidFolder(dirPath))
+            // {
+            //     AssetDatabase.DeleteAsset(dirPath);
+            //     AssetDatabase.Refresh();
+            // }
+            //
+            // Directory.CreateDirectory(dirPath);
+            // int regionWidth = 64;
+            // int regionHeight = 64;
+            // int regionWidthNum = Mathf.CeilToInt(xSize / regionWidth);
+            // int regionHeightNum = Mathf.CeilToInt(zSize / regionHeight);
+            // int endRegionWidth = (int)(xSize % regionWidth);
+            // int endRegionHeight = (int)(zSize % regionHeight);
+            // int normalCellXNum = Mathf.CeilToInt(regionWidth / cellSize);
+            // int normalCellZNum = Mathf.CeilToInt(regionHeight / cellSize);
+            // for (int i = 0; i < regionWidthNum; i++)
+            // {
+            //     bool isEndWidthRegion = i == regionWidthNum - 1;
+            //     for (int j = 0; j < regionHeightNum; j++)
+            //     {
+            //         bool isEndHeightRegion = j == regionHeightNum - 1;
+            //         int rWidth = isEndWidthRegion ? endRegionWidth : regionWidth;
+            //         int rHeight = isEndHeightRegion ? endRegionHeight : regionHeight;
+            //         RegionVoxelData regionVoxelData = new RegionVoxelData();
+            //         regionVoxelData.startCellX = minCell.x + i * normalCellXNum;
+            //         regionVoxelData.startCellZ = minCell.z + j * normalCellZNum;
+            //         regionVoxelData.endCellX = regionVoxelData.startCellX + Mathf.CeilToInt(rWidth / cellSize);
+            //         regionVoxelData.endCellZ = regionVoxelData.startCellZ + Mathf.CeilToInt(rHeight / cellSize);
+            //         int cellNum = (regionVoxelData.endCellZ - regionVoxelData.startCellZ) *
+            //                       (regionVoxelData.endCellX - regionVoxelData.startCellX);
+            //         regionVoxelData.cellSpanInfos = new CellSpanInfo[cellNum];
+            //         int cellIndex = 0;
+            //         for (int k = regionVoxelData.startCellX; k < regionVoxelData.endCellX; k++)
+            //         {
+            //             for (int l = regionVoxelData.startCellZ; l < regionVoxelData.endCellZ; l++)
+            //             {
+            //                 int spanNum = m_voxelTool.GetSpans(k, l, sSpanBuffer, sSpanBufferSize);
+            //                 Debug.Log($"spanNum-->{spanNum},{k},{l}");
+            //                 if (spanNum < 0)
+            //                 {
+            //                     Debug.Log($"IsBuildSuccess = {m_voxelTool.IsBuildSuccess()}");
+            //                 }
+            //
+            //                 CellSpanInfo info = new CellSpanInfo(k, l, spanNum);
+            //                 if (spanNum > 0)
+            //                 {
+            //                     for (int m = 0; m < spanNum; m++)
+            //                     {
+            //                         ushort min = sSpanBuffer[m * 3];
+            //                         ushort max = sSpanBuffer[m * 3 + 1];
+            //                         ushort mask = sSpanBuffer[m * 3 + 2];
+            //                         info.spans[m] = new VoxelSpan(min, max, mask);
+            //                     }
+            //                 }
+            //
+            //                 regionVoxelData.cellSpanInfos[cellIndex] = info;
+            //                 cellIndex++;
+            //             }
+            //         }
+            //
+            //         File.WriteAllText(Path.Combine(dirPath, "region_" + i + "_" + j + ".json"),
+            //             JsonMapper.ToJson(regionVoxelData));
+            //     }
+            //
+            //     GC.Collect();
+            // }
         }
 
         [FoldoutGroup("Voxel")]
         [Button("Save Client Data")]
         public void SaveClientData()
         {
-            if (mVoxelTool == null || !mVoxelTool.buildSuccess)
+            if (m_voxelTool is not { buildSuccess: true })
             {
                 Debug.LogError("[VoxelViewer:SaveClientData] build voxel success first.");
                 return;
             }
 
-            // string dirPath = clientDataPath;
-            string dirPath = Path.Combine(Application.dataPath, $"{mapID}_client");
-            if (AssetDatabase.IsValidFolder(dirPath))
+            string dirPath = Path.Combine(clientDataPath, $"{mapID}_client");
+            if (!Directory.Exists(dirPath))
             {
-                AssetDatabase.DeleteAsset(dirPath);
-                AssetDatabase.Refresh();
+                Directory.CreateDirectory(dirPath);
             }
 
-            Directory.CreateDirectory(dirPath);
-            AssetDatabase.Refresh();
-
-            if (mVoxelTool.SaveClientData(dirPath))
+            if (m_voxelTool.SaveClientData(dirPath))
             {
-                AssetDatabase.Refresh();
                 Debug.LogFormat("[VoxelViewer:SaveClientData] save data to {0} successfully.", dirPath);
             }
             else
             {
                 Debug.LogErrorFormat("[VoxelViewer:SaveClientData] save data to {0} failed.", dirPath);
             }
+            AssetDatabase.Refresh();
         }
 
         #endregion
