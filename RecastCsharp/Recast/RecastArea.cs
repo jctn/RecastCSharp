@@ -1,9 +1,11 @@
 using System;
 using System.Diagnostics;
+using System.Linq;
 
 namespace RecastSharp
 {
-    public static partial class Recast {
+    public static partial class Recast
+    {
         /// @par 
         /// 
         /// Basically, any spans that are closer to a boundary or obstruction than the specified radius 
@@ -12,7 +14,8 @@ namespace RecastSharp
         /// This method is usually called immediately after the heightfield has been built.
         ///
         /// @see rcCompactHeightfield, rcBuildCompactHeightfield, rcConfig::walkableRadius
-        public static bool rcErodeWalkableArea(rcContext ctx, int radius, rcCompactHeightfield chf) {
+        public static bool rcErodeWalkableArea(rcContext ctx, int radius, rcCompactHeightfield chf)
+        {
             Debug.Assert(ctx != null, "rcContext is null");
 
             int w = chf.width;
@@ -20,39 +23,55 @@ namespace RecastSharp
 
             ctx.startTimer(rcTimerLabel.RC_TIMER_ERODE_AREA);
 
-            byte[] dist = new byte[chf.spanCount];//(byte*)rcAlloc(sizeof(byte)*chf.spanCount, RC_ALLOC_TEMP);
-            if (dist == null) {
-                ctx.log(rcLogCategory.RC_LOG_ERROR, "erodeWalkableArea: Out of memory 'dist' " + chf.spanCount);
-                return false;
-            }
+            // unsigned char* dist = (unsigned char*)rcAlloc(sizeof(unsigned char)*chf.spanCount, RC_ALLOC_TEMP);
+            // if (!dist)
+            // {
+            //     ctx->log(RC_LOG_ERROR, "erodeWalkableArea: Out of memory 'dist' (%d).", chf.spanCount);
+            //     return false;
+            // }
 
             // Init distance.
-            for (int i=0; i < chf.spanCount; ++i) {
-                dist[i] = 0xff;
-            }
-            //	memset(dist, 0xff, sizeof(byte)*chf.spanCount);
+            // memset(dist, 0xff, sizeof(unsigned char)*chf.spanCount);
+
+            // dist是spancount长度的数组，保存每个span距离边缘的距离，如果dist[i]被置为0，则说明i索引的span为边界。
+
+            // Init distance.
+            byte[] dist = Enumerable.Repeat((byte)0xFF, chf.spanCount).ToArray();
 
             // Mark boundary cells.
-            for (int y = 0; y < h; ++y) {
-                for (int x = 0; x < w; ++x) {
+            // 标记出边界，本身span为不可走或者与四方向邻居都不相通，则span为边界，dist[i] = 0
+            for (int y = 0; y < h; ++y)
+            {
+                for (int x = 0; x < w; ++x)
+                {
                     rcCompactCell c = chf.cells![x + y * w];
-                    for (int i = (int)c.index, ni = (int)(c.index + c.count); i < ni; ++i) {
-                        if (chf.areas![i] == RC_NULL_AREA) {
+                    for (int i = (int)c.index, ni = (int)(c.index + c.count); i < ni; ++i)
+                    {
+                        //不可行走
+                        if (chf.areas![i] == RC_NULL_AREA)
+                        {
                             dist[i] = 0;
-                        } else {
+                        }
+                        else
+                        {
                             rcCompactSpan s = chf.spans![i];
                             int nc = 0;
-                            for (int dir = 0; dir < 4; ++dir) {
-                                if (rcGetCon(s, dir) != RC_NOT_CONNECTED) {
+                            for (int dir = 0; dir < 4; ++dir)
+                            {
+                                if (rcGetCon(s, dir) != RC_NOT_CONNECTED)
+                                {
                                     int nx = x + rcGetDirOffsetX(dir);
                                     int ny = y + rcGetDirOffsetY(dir);
                                     int nidx = (int)chf.cells[nx + ny * w].index + rcGetCon(s, dir);
-                                    if (chf.areas[nidx] != RC_NULL_AREA) {
+                                    if (chf.areas[nidx] != RC_NULL_AREA)
+                                    {
                                         nc++;
                                     }
                                 }
                             }
+
                             // At least one missing neighbour.
+                            // 与一个邻居不连通
                             if (nc != 4)
                                 dist[i] = 0;
                         }
@@ -60,47 +79,63 @@ namespace RecastSharp
                 }
             }
 
-            byte nd = 0;
+            //计算距离，使用2次遍历计算距离
+            byte nd;
 
             // Pass 1
-            for (int y = 0; y < h; ++y) {
-                for (int x = 0; x < w; ++x) {
+            //第一次从左下到右上遍历，计算出障碍物右上方span的距离
+            for (int y = 0; y < h; ++y)
+            {
+                for (int x = 0; x < w; ++x)
+                {
                     rcCompactCell c = chf.cells![x + y * w];
-                    for (int i = (int)c.index, ni = (int)(c.index + c.count); i < ni; ++i) {
+                    for (int i = (int)c.index, ni = (int)(c.index + c.count); i < ni; ++i)
+                    {
                         rcCompactSpan s = chf.spans![i];
 
-                        if (rcGetCon(s, 0) != RC_NOT_CONNECTED) {
+                        if (rcGetCon(s, 0) != RC_NOT_CONNECTED)
+                        {
                             // (-1,0)
+                            // 左邻居
                             int ax = x + rcGetDirOffsetX(0);
                             int ay = y + rcGetDirOffsetY(0);
                             int ai = (int)chf.cells[ax + ay * w].index + rcGetCon(s, 0);
                             rcCompactSpan aSpan = chf.spans[ai];
-                            nd = (byte)Math.Min((int)dist[ai] + 2, 255);
+                            // 正交的邻居距离+2
+                            nd = (byte)Math.Min(dist[ai] + 2, 255);
                             if (nd < dist[i])
                                 dist[i] = nd;
 
                             // (-1,-1)
-                            if (rcGetCon(aSpan, 3) != RC_NOT_CONNECTED) {
+                            // 左下邻居
+                            if (rcGetCon(aSpan, 3) != RC_NOT_CONNECTED)
+                            {
                                 int aax = ax + rcGetDirOffsetX(3);
                                 int aay = ay + rcGetDirOffsetY(3);
                                 int aai = (int)chf.cells[aax + aay * w].index + rcGetCon(aSpan, 3);
-                                nd = (byte)Math.Min((int)dist[aai] + 3, 255);
+                                // 斜方向的邻居距离+3
+                                nd = (byte)Math.Min(dist[aai] + 3, 255);
                                 if (nd < dist[i])
                                     dist[i] = nd;
                             }
                         }
-                        if (rcGetCon(s, 3) != RC_NOT_CONNECTED) {
+
+                        if (rcGetCon(s, 3) != RC_NOT_CONNECTED)
+                        {
                             // (0,-1)
+                            // 下邻居
                             int ax = x + rcGetDirOffsetX(3);
                             int ay = y + rcGetDirOffsetY(3);
                             int ai = (int)chf.cells[ax + ay * w].index + rcGetCon(s, 3);
                             rcCompactSpan aSpan = chf.spans[ai];
-                            nd = (byte)Math.Min((int)dist[ai] + 2, 255);
+                            nd = (byte)Math.Min(dist[ai] + 2, 255);
                             if (nd < dist[i])
                                 dist[i] = nd;
 
                             // (1,-1)
-                            if (rcGetCon(aSpan, 2) != RC_NOT_CONNECTED) {
+                            // 右下邻居
+                            if (rcGetCon(aSpan, 2) != RC_NOT_CONNECTED)
+                            {
                                 int aax = ax + rcGetDirOffsetX(2);
                                 int aay = ay + rcGetDirOffsetY(2);
                                 int aai = (int)chf.cells[aax + aay * w].index + rcGetCon(aSpan, 2);
@@ -114,33 +149,41 @@ namespace RecastSharp
             }
 
             // Pass 2
-            for (int y = h - 1; y >= 0; --y) {
-                for (int x = w - 1; x >= 0; --x) {
+            // 第二从右上到最下遍历，计算出障碍物左下方span的距离
+            for (int y = h - 1; y >= 0; --y)
+            {
+                for (int x = w - 1; x >= 0; --x)
+                {
                     rcCompactCell c = chf.cells![x + y * w];
-                    for (int i = (int)c.index, ni = (int)(c.index + c.count); i < ni; ++i) {
+                    for (int i = (int)c.index, ni = (int)(c.index + c.count); i < ni; ++i)
+                    {
                         rcCompactSpan s = chf.spans![i];
 
-                        if (rcGetCon(s, 2) != RC_NOT_CONNECTED) {
+                        if (rcGetCon(s, 2) != RC_NOT_CONNECTED)
+                        {
                             // (1,0)
                             int ax = x + rcGetDirOffsetX(2);
                             int ay = y + rcGetDirOffsetY(2);
                             int ai = (int)chf.cells[ax + ay * w].index + rcGetCon(s, 2);
                             rcCompactSpan aSpan = chf.spans[ai];
-                            nd = (byte)Math.Min((int)dist[ai] + 2, 255);
+                            nd = (byte)Math.Min(dist[ai] + 2, 255);
                             if (nd < dist[i])
                                 dist[i] = nd;
 
                             // (1,1)
-                            if (rcGetCon(aSpan, 1) != RC_NOT_CONNECTED) {
+                            if (rcGetCon(aSpan, 1) != RC_NOT_CONNECTED)
+                            {
                                 int aax = ax + rcGetDirOffsetX(1);
                                 int aay = ay + rcGetDirOffsetY(1);
                                 int aai = (int)chf.cells[aax + aay * w].index + rcGetCon(aSpan, 1);
-                                nd = (byte)Math.Min((int)dist[aai] + 3, 255);
+                                nd = (byte)Math.Min(dist[aai] + 3, 255);
                                 if (nd < dist[i])
                                     dist[i] = nd;
                             }
                         }
-                        if (rcGetCon(s, 1) != RC_NOT_CONNECTED) {
+
+                        if (rcGetCon(s, 1) != RC_NOT_CONNECTED)
+                        {
                             // (0,1)
                             int ax = x + rcGetDirOffsetX(1);
                             int ay = y + rcGetDirOffsetY(1);
@@ -151,7 +194,8 @@ namespace RecastSharp
                                 dist[i] = nd;
 
                             // (-1,1)
-                            if (rcGetCon(aSpan, 0) != RC_NOT_CONNECTED) {
+                            if (rcGetCon(aSpan, 0) != RC_NOT_CONNECTED)
+                            {
                                 int aax = ax + rcGetDirOffsetX(0);
                                 int aay = ay + rcGetDirOffsetY(0);
                                 int aai = (int)chf.cells[aax + aay * w].index + rcGetCon(aSpan, 0);
@@ -163,20 +207,23 @@ namespace RecastSharp
                     }
                 }
             }
-
+            
+            //距离小于radius的span置为不可行走
             byte thr = (byte)(radius * 2);
             for (int i = 0; i < chf.spanCount; ++i)
                 if (dist[i] < thr)
-                    chf.areas![i] = RC_NULL_AREA;
+                    chf.areas[i] = RC_NULL_AREA;
 
             ctx.stopTimer(rcTimerLabel.RC_TIMER_ERODE_AREA);
 
             return true;
         }
 
-        static void insertSort(byte[] a, int n) {
+        static void insertSort(byte[] a, int n)
+        {
             int i, j;
-            for (i = 1; i < n; i++) {
+            for (i = 1; i < n; i++)
+            {
                 byte value = a[i];
                 for (j = i - 1; j >= 0 && a[j] > value; j--)
                     a[j + 1] = a[j];
@@ -190,7 +237,8 @@ namespace RecastSharp
         /// such as #rcMarkBoxArea, #rcMarkConvexPolyArea, and #rcMarkCylinderArea.
         /// 
         /// @see rcCompactHeightfield
-        public static bool rcMedianFilterWalkableArea(rcContext ctx, rcCompactHeightfield chf) {
+        public static bool rcMedianFilterWalkableArea(rcContext ctx, rcCompactHeightfield chf)
+        {
             Debug.Assert(ctx != null, "rcContext is null");
 
             int w = chf.width;
@@ -198,24 +246,30 @@ namespace RecastSharp
 
             ctx.startTimer(rcTimerLabel.RC_TIMER_MEDIAN_AREA);
 
-            byte[] areas = new byte[chf.spanCount];//(byte*)rcAlloc(sizeof(byte)*chf.spanCount, RC_ALLOC_TEMP);
-            if (areas == null) {
+            byte[] areas = new byte[chf.spanCount]; //(byte*)rcAlloc(sizeof(byte)*chf.spanCount, RC_ALLOC_TEMP);
+            if (areas == null)
+            {
                 ctx.log(rcLogCategory.RC_LOG_ERROR, "medianFilterWalkableArea: Out of memory 'areas' " + chf.spanCount);
                 return false;
             }
 
             // Init distance.
-            for (int i = 0; i < chf.spanCount; ++i) {
+            for (int i = 0; i < chf.spanCount; ++i)
+            {
                 areas[i] = 0xff;
             }
             //memset(areas, 0xff, sizeof(byte)*chf.spanCount);
 
-            for (int y = 0; y < h; ++y) {
-                for (int x = 0; x < w; ++x) {
+            for (int y = 0; y < h; ++y)
+            {
+                for (int x = 0; x < w; ++x)
+                {
                     rcCompactCell c = chf.cells![x + y * w];
-                    for (int i = (int)c.index, ni = (int)(c.index + c.count); i < ni; ++i) {
+                    for (int i = (int)c.index, ni = (int)(c.index + c.count); i < ni; ++i)
+                    {
                         rcCompactSpan s = chf.spans![i];
-                        if (chf.areas![i] == RC_NULL_AREA) {
+                        if (chf.areas![i] == RC_NULL_AREA)
+                        {
                             areas[i] = chf.areas[i];
                             continue;
                         }
@@ -224,8 +278,10 @@ namespace RecastSharp
                         for (int j = 0; j < 9; ++j)
                             nei[j] = chf.areas[i];
 
-                        for (int dir = 0; dir < 4; ++dir) {
-                            if (rcGetCon(s, dir) != RC_NOT_CONNECTED) {
+                        for (int dir = 0; dir < 4; ++dir)
+                        {
+                            if (rcGetCon(s, dir) != RC_NOT_CONNECTED)
+                            {
                                 int ax = x + rcGetDirOffsetX(dir);
                                 int ay = y + rcGetDirOffsetY(dir);
                                 int ai = (int)chf.cells[ax + ay * w].index + rcGetCon(s, dir);
@@ -234,7 +290,8 @@ namespace RecastSharp
 
                                 rcCompactSpan aSpan = chf.spans[ai];
                                 int dir2 = (dir + 1) & 0x3;
-                                if (rcGetCon(aSpan, dir2) != RC_NOT_CONNECTED) {
+                                if (rcGetCon(aSpan, dir2) != RC_NOT_CONNECTED)
+                                {
                                     int ax2 = ax + rcGetDirOffsetX(dir2);
                                     int ay2 = ay + rcGetDirOffsetY(dir2);
                                     int ai2 = (int)chf.cells[ax2 + ay2 * w].index + rcGetCon(aSpan, dir2);
@@ -243,6 +300,7 @@ namespace RecastSharp
                                 }
                             }
                         }
+
                         insertSort(nei, 9);
                         areas[i] = nei[4];
                     }
@@ -262,7 +320,8 @@ namespace RecastSharp
         /// 
         /// @see rcCompactHeightfield, rcMedianFilterWalkableArea
         public static void rcMarkBoxArea(rcContext ctx, float[] bmin, float[] bmax, byte areaId,
-                        rcCompactHeightfield chf) {
+            rcCompactHeightfield chf)
+        {
             Debug.Assert(ctx != null, "rcContext is null");
 
             ctx.startTimer(rcTimerLabel.RC_TIMER_MARK_BOX_AREA);
@@ -284,12 +343,16 @@ namespace RecastSharp
             if (minz < 0) minz = 0;
             if (maxz >= chf.height) maxz = chf.height - 1;
 
-            for (int z = minz; z <= maxz; ++z) {
-                for (int x = minx; x <= maxx; ++x) {
+            for (int z = minz; z <= maxz; ++z)
+            {
+                for (int x = minx; x <= maxx; ++x)
+                {
                     rcCompactCell c = chf.cells![x + z * chf.width];
-                    for (int i = (int)c.index, ni = (int)(c.index + c.count); i < ni; ++i) {
+                    for (int i = (int)c.index, ni = (int)(c.index + c.count); i < ni; ++i)
+                    {
                         rcCompactSpan s = chf.spans![i];
-                        if ((int)s.y >= miny && (int)s.y <= maxy) {
+                        if ((int)s.y >= miny && (int)s.y <= maxy)
+                        {
                             if (chf.areas![i] != RC_NULL_AREA)
                                 chf.areas[i] = areaId;
                         }
@@ -298,22 +361,26 @@ namespace RecastSharp
             }
 
             ctx.stopTimer(rcTimerLabel.RC_TIMER_MARK_BOX_AREA);
-
         }
 
 
-        public static bool pointInPoly(int nvert, float[] verts, float[] p) {
+        public static bool pointInPoly(int nvert, float[] verts, float[] p)
+        {
             bool c = false;
             int i = 0;
             int j = 0;
-            for (i = 0, j = nvert - 1; i < nvert; j = i++) {
+            for (i = 0, j = nvert - 1; i < nvert; j = i++)
+            {
                 int viStart = i * 3;
                 int vjStart = j * 3;
                 if (((verts[viStart + 2] > p[2]) != (verts[vjStart + 2] > p[2])) &&
-                    (p[0] < (verts[vjStart + 0] - verts[viStart + 0]) * (p[2] - verts[viStart + 2]) / (verts[vjStart + 2] - verts[viStart + 2]) + verts[viStart + 0])) {
+                    (p[0] < (verts[vjStart + 0] - verts[viStart + 0]) * (p[2] - verts[viStart + 2]) /
+                        (verts[vjStart + 2] - verts[viStart + 2]) + verts[viStart + 0]))
+                {
                     c = !c;
                 }
             }
+
             return c;
         }
 
@@ -326,8 +393,9 @@ namespace RecastSharp
         /// 
         /// @see rcCompactHeightfield, rcMedianFilterWalkableArea
         public static void rcMarkConvexPolyArea(rcContext ctx, float[] verts, int nverts,
-                                float hmin, float hmax, byte areaId,
-                                rcCompactHeightfield chf) {
+            float hmin, float hmax, byte areaId,
+            rcCompactHeightfield chf)
+        {
             Debug.Assert(ctx != null, "rcContext is null");
 
             ctx.startTimer(rcTimerLabel.RC_TIMER_MARK_CONVEXPOLY_AREA);
@@ -336,11 +404,13 @@ namespace RecastSharp
             float[] bmax = new float[3];
             rcVcopy(bmin, verts);
             rcVcopy(bmax, verts);
-            for (int i = 1; i < nverts; ++i) {
+            for (int i = 1; i < nverts; ++i)
+            {
                 int vStart = i * 3;
                 rcVmin(bmin, 0, verts, vStart);
                 rcVmax(bmax, 0, verts, vStart);
             }
+
             bmin[1] = hmin;
             bmax[1] = hmax;
 
@@ -363,20 +433,25 @@ namespace RecastSharp
 
 
             // TODO: Optimize.
-            for (int z = minz; z <= maxz; ++z) {
-                for (int x = minx; x <= maxx; ++x) {
+            for (int z = minz; z <= maxz; ++z)
+            {
+                for (int x = minx; x <= maxx; ++x)
+                {
                     rcCompactCell c = chf.cells![x + z * chf.width];
-                    for (int i = (int)c.index, ni = (int)(c.index + c.count); i < ni; ++i) {
+                    for (int i = (int)c.index, ni = (int)(c.index + c.count); i < ni; ++i)
+                    {
                         rcCompactSpan s = chf.spans![i];
                         if (chf.areas![i] == RC_NULL_AREA)
                             continue;
-                        if ((int)s.y >= miny && (int)s.y <= maxy) {
+                        if ((int)s.y >= miny && (int)s.y <= maxy)
+                        {
                             float[] p = new float[3];
                             p[0] = chf.bmin[0] + (x + 0.5f) * chf.cs;
                             p[1] = 0;
                             p[2] = chf.bmin[2] + (z + 0.5f) * chf.cs;
 
-                            if (pointInPoly(nverts, verts, p)) {
+                            if (pointInPoly(nverts, verts, p))
+                            {
                                 chf.areas[i] = areaId;
                             }
                         }
@@ -388,12 +463,14 @@ namespace RecastSharp
         }
 
         static int rcOffsetPoly(float[] verts, int nverts, float offset,
-                        float[] outVerts, int maxOutVerts) {
+            float[] outVerts, int maxOutVerts)
+        {
             const float MITER_LIMIT = 1.20f;
 
             int n = 0;
 
-            for (int i = 0; i < nverts; i++) {
+            for (int i = 0; i < nverts; i++)
+            {
                 int a = (i + nverts - 1) % nverts;
                 int b = i;
                 int c = (i + 1) % nverts;
@@ -403,19 +480,23 @@ namespace RecastSharp
                 float dx0 = verts[vbStart + 0] - verts[vaStart + 0];
                 float dy0 = verts[vbStart + 2] - verts[vaStart + 2];
                 float d0 = dx0 * dx0 + dy0 * dy0;
-                if (d0 > 1e-6f) {
+                if (d0 > 1e-6f)
+                {
                     d0 = 1.0f / (float)Math.Sqrt(d0);
                     dx0 *= d0;
                     dy0 *= d0;
                 }
+
                 float dx1 = verts[vcStart + 0] - verts[vbStart + 0];
                 float dy1 = verts[vcStart + 2] - verts[vbStart + 2];
                 float d1 = dx1 * dx1 + dy1 * dy1;
-                if (d1 > 1e-6f) {
+                if (d1 > 1e-6f)
+                {
                     d1 = 1.0f / (float)Math.Sqrt(d1);
                     dx1 *= d1;
                     dy1 *= d1;
                 }
+
                 float dlx0 = -dy0;
                 float dly0 = dx0;
                 float dlx1 = -dy1;
@@ -425,13 +506,15 @@ namespace RecastSharp
                 float dmy = (dly0 + dly1) * 0.5f;
                 float dmr2 = dmx * dmx + dmy * dmy;
                 bool bevel = dmr2 * MITER_LIMIT * MITER_LIMIT < 1.0f;
-                if (dmr2 > 1e-6f) {
+                if (dmr2 > 1e-6f)
+                {
                     float scale = 1.0f / dmr2;
                     dmx *= scale;
                     dmy *= scale;
                 }
 
-                if (bevel && cross < 0.0f) {
+                if (bevel && cross < 0.0f)
+                {
                     if (n + 2 >= maxOutVerts)
                         return 0;
                     float d = (1.0f - (dx0 * dx1 + dy0 * dy1)) * 0.5f;
@@ -443,7 +526,9 @@ namespace RecastSharp
                     outVerts[n * 3 + 1] = verts[vbStart + 1];
                     outVerts[n * 3 + 2] = verts[vbStart + 2] + (-dly1 - dy1 * d) * offset;
                     n++;
-                } else {
+                }
+                else
+                {
                     if (n + 1 >= maxOutVerts)
                         return 0;
                     outVerts[n * 3 + 0] = verts[vbStart + 0] - dmx * offset;
@@ -463,8 +548,9 @@ namespace RecastSharp
         /// 
         /// @see rcCompactHeightfield, rcMedianFilterWalkableArea
         static public void rcMarkCylinderArea(rcContext ctx, float[] pos,
-                                float r, float h, byte areaId,
-                                rcCompactHeightfield chf) {
+            float r, float h, byte areaId,
+            rcCompactHeightfield chf)
+        {
             Debug.Assert(ctx != null, "rcContext is null");
 
             ctx.startTimer(rcTimerLabel.RC_TIMER_MARK_CYLINDER_AREA);
@@ -497,22 +583,27 @@ namespace RecastSharp
             if (maxz >= chf.height) maxz = chf.height - 1;
 
 
-            for (int z = minz; z <= maxz; ++z) {
-                for (int x = minx; x <= maxx; ++x) {
+            for (int z = minz; z <= maxz; ++z)
+            {
+                for (int x = minx; x <= maxx; ++x)
+                {
                     rcCompactCell c = chf.cells![x + z * chf.width];
-                    for (int i = (int)c.index, ni = (int)(c.index + c.count); i < ni; ++i) {
+                    for (int i = (int)c.index, ni = (int)(c.index + c.count); i < ni; ++i)
+                    {
                         rcCompactSpan s = chf.spans![i];
 
                         if (chf.areas![i] == RC_NULL_AREA)
                             continue;
 
-                        if ((int)s.y >= miny && (int)s.y <= maxy) {
+                        if ((int)s.y >= miny && (int)s.y <= maxy)
+                        {
                             float sx = chf.bmin[0] + (x + 0.5f) * chf.cs;
                             float sz = chf.bmin[2] + (z + 0.5f) * chf.cs;
                             float dx = sx - pos[0];
                             float dz = sz - pos[2];
 
-                            if (dx * dx + dz * dz < r2) {
+                            if (dx * dx + dz * dz < r2)
+                            {
                                 chf.areas[i] = areaId;
                             }
                         }

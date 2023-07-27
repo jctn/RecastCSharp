@@ -11,7 +11,8 @@ namespace RecastSharp
         public const float RC_PI = 3.14159265f;
 
         /// Defines the number of bits allocated to rcSpan::smin and rcSpan::smax.
-        public const int RC_SPAN_HEIGHT_BITS = 13;
+        public const int RC_SPAN_HEIGHT_BITS = 16;
+
         /// Defines the maximum value for rcSpan::smin and rcSpan::smax.
         public const int RC_SPAN_MAX_HEIGHT = (1 << RC_SPAN_HEIGHT_BITS) - 1;
 
@@ -19,9 +20,9 @@ namespace RecastSharp
         /// @see rcContext
         public enum rcLogCategory
         {
-            RC_LOG_PROGRESS = 1,	//< A progress log entry.
-            RC_LOG_WARNING,			//< A warning log entry.
-            RC_LOG_ERROR,			//< An error log entry.
+            RC_LOG_PROGRESS = 1, //< A progress log entry.
+            RC_LOG_WARNING, //< A warning log entry.
+            RC_LOG_ERROR, //< An error log entry.
         };
 
         /// Recast performance timer categories.
@@ -30,60 +31,88 @@ namespace RecastSharp
         {
             /// The user defined total time of the build.
             RC_TIMER_TOTAL,
+
             /// A user defined build time.
             RC_TIMER_TEMP,
+
             /// The time to rasterize the triangles. (See: #rcRasterizeTriangle)
             RC_TIMER_RASTERIZE_TRIANGLES,
+
             /// The time to build the compact heightfield. (See: #rcBuildCompactHeightfield)
             RC_TIMER_BUILD_COMPACTHEIGHTFIELD,
+
             /// The total time to build the contours. (See: #rcBuildContours)
             RC_TIMER_BUILD_CONTOURS,
+
             /// The time to trace the boundaries of the contours. (See: #rcBuildContours)
             RC_TIMER_BUILD_CONTOURS_TRACE,
+
             /// The time to simplify the contours. (See: #rcBuildContours)
             RC_TIMER_BUILD_CONTOURS_SIMPLIFY,
+
             /// The time to filter ledge spans. (See: #rcFilterLedgeSpans)
             RC_TIMER_FILTER_BORDER,
+
             /// The time to filter low height spans. (See: #rcFilterWalkableLowHeightSpans)
             RC_TIMER_FILTER_WALKABLE,
+
             /// The time to apply the median filter. (See: #rcMedianFilterWalkableArea)
             RC_TIMER_MEDIAN_AREA,
+
             /// The time to filter low obstacles. (See: #rcFilterLowHangingWalkableObstacles)
             RC_TIMER_FILTER_LOW_OBSTACLES,
+
             /// The time to build the polygon mesh. (See: #rcBuildPolyMesh)
             RC_TIMER_BUILD_POLYMESH,
+
             /// The time to merge polygon meshes. (See: #rcMergePolyMeshes)
             RC_TIMER_MERGE_POLYMESH,
+
             /// The time to erode the walkable area. (See: #rcErodeWalkableArea)
             RC_TIMER_ERODE_AREA,
+
             /// The time to mark a box area. (See: #rcMarkBoxArea)
             RC_TIMER_MARK_BOX_AREA,
+
             /// The time to mark a cylinder area. (See: #rcMarkCylinderArea)
             RC_TIMER_MARK_CYLINDER_AREA,
+
             /// The time to mark a convex polygon area. (See: #rcMarkConvexPolyArea)
             RC_TIMER_MARK_CONVEXPOLY_AREA,
+
             /// The total time to build the distance field. (See: #rcBuildDistanceField)
             RC_TIMER_BUILD_DISTANCEFIELD,
+
             /// The time to build the distances of the distance field. (See: #rcBuildDistanceField)
             RC_TIMER_BUILD_DISTANCEFIELD_DIST,
+
             /// The time to blur the distance field. (See: #rcBuildDistanceField)
             RC_TIMER_BUILD_DISTANCEFIELD_BLUR,
+
             /// The total time to build the regions. (See: #rcBuildRegions, #rcBuildRegionsMonotone)
             RC_TIMER_BUILD_REGIONS,
+
             /// The total time to apply the watershed algorithm. (See: #rcBuildRegions)
             RC_TIMER_BUILD_REGIONS_WATERSHED,
+
             /// The time to expand regions while applying the watershed algorithm. (See: #rcBuildRegions)
             RC_TIMER_BUILD_REGIONS_EXPAND,
+
             /// The time to flood regions while applying the watershed algorithm. (See: #rcBuildRegions)
             RC_TIMER_BUILD_REGIONS_FLOOD,
+
             /// The time to filter out small regions. (See: #rcBuildRegions, #rcBuildRegionsMonotone)
             RC_TIMER_BUILD_REGIONS_FILTER,
+
             /// The time to build heightfield layers. (See: #rcBuildHeightfieldLayers)
             RC_TIMER_BUILD_LAYERS,
+
             /// The time to build the polygon mesh detail. (See: #rcBuildPolyMeshDetail)
             RC_TIMER_BUILD_POLYMESHDETAIL,
+
             /// The time to merge polygon mesh details. (See: #rcMergePolyMeshDetails)
             RC_TIMER_MERGE_POLYMESHDETAIL,
+
             /// The maximum number of timers.  (Used for iterating timers.)
             RC_MAX_TIMERS
         };
@@ -115,8 +144,8 @@ namespace RecastSharp
         /// 
         /// @see rcAllocHeightfield, rcHeightfield 
         public static bool rcCreateHeightfield(rcContext ctx, rcHeightfield hf, int width, int height,
-                            float[] bmin, float[] bmax,
-                            float cs, float ch)
+            float[] bmin, float[] bmax,
+            float cs, float ch)
         {
             rcIgnoreUnused(ctx);
 
@@ -126,7 +155,8 @@ namespace RecastSharp
             rcVcopy(hf.bmax, bmax);
             hf.cs = cs;
             hf.ch = ch;
-            hf.spans = new rcSpan[hf.width * hf.height];//(rcSpan**)rcAlloc(sizeof(rcSpan*)*hf.width*hf.height, RC_ALLOC_PERM);
+            hf.spans = new rcSpan[hf.width *
+                                  hf.height]; //(rcSpan**)rcAlloc(sizeof(rcSpan*)*hf.width*hf.height, RC_ALLOC_PERM);
             if (hf.spans == null)
                 return false;
             //memset(hf.spans, 0, sizeof(rcSpan*)*hf.width*hf.height);
@@ -143,7 +173,8 @@ namespace RecastSharp
             rcVnormalize(norm);
         }
 
-        public static void calcTriNormal(float[] v0, int v0Start, float[] v1, int v1Start, float[] v2, int v2Start, float[] norm)
+        public static void calcTriNormal(float[] v0, int v0Start, float[] v1, int v1Start, float[] v2, int v2Start,
+            float[] norm)
         {
             float[] e0 = new float[3];
             float[] e1 = new float[3];
@@ -162,9 +193,9 @@ namespace RecastSharp
         /// 
         /// @see rcHeightfield, rcClearUnwalkableTriangles, rcRasterizeTriangles
         public static void rcMarkWalkableTriangles(rcContext ctx, float walkableSlopeAngle,
-                                    float[] verts, int nv,
-                                    int[] tris, int nt,
-                                    byte[] areas)
+            float[] verts, int nv,
+            int[] tris, int nt,
+            byte[] areas)
         {
             rcIgnoreUnused(ctx);
 
@@ -175,7 +206,8 @@ namespace RecastSharp
             for (int i = 0; i < nt; ++i)
             {
                 int triStart = i * 3;
-                calcTriNormal(verts, tris[triStart + 0] * 3, verts, tris[triStart + 1] * 3, verts, tris[triStart + 2] * 3, norm);
+                calcTriNormal(verts, tris[triStart + 0] * 3, verts, tris[triStart + 1] * 3, verts,
+                    tris[triStart + 2] * 3, norm);
                 // Check if the face is walkable.
                 if (norm[1] > walkableThr)
                     areas[i] = RC_WALKABLE_AREA;
@@ -191,9 +223,9 @@ namespace RecastSharp
         /// 
         /// @see rcHeightfield, rcClearUnwalkableTriangles, rcRasterizeTriangles
         public static void rcClearUnwalkableTriangles(rcContext ctx, float walkableSlopeAngle,
-                                        float[] verts, int nv,
-                                        int[] tris, int nt,
-                                        byte[] areas)
+            float[] verts, int nv,
+            int[] tris, int nt,
+            byte[] areas)
         {
             rcIgnoreUnused(ctx);
 
@@ -204,7 +236,8 @@ namespace RecastSharp
             for (int i = 0; i < nt; ++i)
             {
                 int triStart = i * 3;
-                calcTriNormal(verts, tris[triStart + 0] * 3, verts, tris[triStart + 1] * 3, verts, tris[triStart + 2] * 3, norm);
+                calcTriNormal(verts, tris[triStart + 0] * 3, verts, tris[triStart + 1] * 3, verts,
+                    tris[triStart + 2] * 3, norm);
                 // Check if the face is walkable.
                 if (norm[1] <= walkableThr)
                     areas[i] = RC_NULL_AREA;
@@ -222,13 +255,14 @@ namespace RecastSharp
             {
                 for (int x = 0; x < w; ++x)
                 {
-                    for (rcSpan? s = hf.spans![x + y * w]; s != null; s = s.next)
+                    for (rcSpan s = hf.spans![x + y * w]; s != null; s = s.next)
                     {
                         if (s.area != RC_NULL_AREA)
                             spanCount++;
                     }
                 }
             }
+
             return spanCount;
         }
 
@@ -250,141 +284,155 @@ namespace RecastSharp
         ///
         /// @see rcAllocCompactHeightfield, rcHeightfield, rcCompactHeightfield, rcConfig
         public static bool rcBuildCompactHeightfield(rcContext ctx, int walkableHeight, int walkableClimb,
-                                    rcHeightfield hf, rcCompactHeightfield chf)
+            rcHeightfield heightfield, rcCompactHeightfield compactHeightfield)
         {
             Debug.Assert(ctx != null, "rcBuildCompactHeightfield Assert(ctx != null)");
 
             ctx.startTimer(rcTimerLabel.RC_TIMER_BUILD_COMPACTHEIGHTFIELD);
 
-            int w = hf.width;
-            int h = hf.height;
-            int spanCount = rcGetHeightFieldSpanCount(ctx, hf);
+            int xSize = heightfield.width;
+            int zSize = heightfield.height;
+            int spanCount = rcGetHeightFieldSpanCount(ctx, heightfield);
 
             // Fill in header.
-            chf.width = w;
-            chf.height = h;
-            chf.spanCount = spanCount;
-            chf.walkableHeight = walkableHeight;
-            chf.walkableClimb = walkableClimb;
-            chf.maxRegions = 0;
-            rcVcopy(chf.bmin, hf.bmin);
-            rcVcopy(chf.bmax, hf.bmax);
-            chf.bmax[1] += walkableHeight * hf.ch;
-            chf.cs = hf.cs;
-            chf.ch = hf.ch;
-            chf.cells = new rcCompactCell[w * h];
-            //chf.cells = (rcCompactCell*)rcAlloc(sizeof(rcCompactCell)*w*h, RC_ALLOC_PERM);
+            compactHeightfield.width = xSize;
+            compactHeightfield.height = zSize;
+            compactHeightfield.spanCount = spanCount;
+            compactHeightfield.walkableHeight = walkableHeight;
+            compactHeightfield.walkableClimb = walkableClimb;
+            compactHeightfield.maxRegions = 0;
+            rcVcopy(compactHeightfield.bmin, heightfield.bmin);
+            rcVcopy(compactHeightfield.bmax, heightfield.bmax);
+            compactHeightfield.bmax[1] += walkableHeight * heightfield.ch;
+            compactHeightfield.cs = heightfield.cs;
+            compactHeightfield.ch = heightfield.ch;
+            compactHeightfield.cells = new rcCompactCell[xSize * zSize];
 
-            if (chf.cells == null)
+            if (compactHeightfield.cells == null)
             {
-                ctx.log(rcLogCategory.RC_LOG_ERROR, "rcBuildCompactHeightfield: Out of memory 'chf.cells' (" + (w * h) + ")");
-                return false;
-            }
-            chf.spans = new rcCompactSpan[spanCount];// (rcCompactSpan*)rcAlloc(sizeof(rcCompactSpan)*spanCount, RC_ALLOC_PERM);
-            if (chf.spans == null)
-            {
-                ctx.log(rcLogCategory.RC_LOG_ERROR, "rcBuildCompactHeightfield: Out of memory 'chf.spans' (" + spanCount + ")");
-                return false;
-            }
-            chf.areas = new byte[spanCount]; //(byte*)rcAlloc(sizeof(byte)*spanCount, RC_ALLOC_PERM);
-            if (chf.areas == null)
-            {
-                ctx.log(rcLogCategory.RC_LOG_ERROR, "rcBuildCompactHeightfield: Out of memory 'chf.areas' (" + spanCount + ")"); ;
+                ctx.log(rcLogCategory.RC_LOG_ERROR,
+                    "rcBuildCompactHeightfield: Out of memory 'chf.cells' (" + (xSize * zSize) + ")");
                 return false;
             }
 
-            int MAX_HEIGHT = 0xffff;
+            compactHeightfield.spans =
+                new rcCompactSpan[spanCount]; // (rcCompactSpan*)rcAlloc(sizeof(rcCompactSpan)*spanCount, RC_ALLOC_PERM);
+            if (compactHeightfield.spans == null)
+            {
+                ctx.log(rcLogCategory.RC_LOG_ERROR,
+                    "rcBuildCompactHeightfield: Out of memory 'chf.spans' (" + spanCount + ")");
+                return false;
+            }
+
+            compactHeightfield.areas = new byte[spanCount]; //(byte*)rcAlloc(sizeof(byte)*spanCount, RC_ALLOC_PERM);
+            if (compactHeightfield.areas == null)
+            {
+                ctx.log(rcLogCategory.RC_LOG_ERROR,
+                    "rcBuildCompactHeightfield: Out of memory 'chf.areas' (" + spanCount + ")");
+                ;
+                return false;
+            }
 
             // Fill in cells and spans.
-            int idx = 0;
-            for (int y = 0; y < h; ++y)
+            // 把地图上所有可行走的span填充到spans
+            uint currentCellIndex = 0;
+            int numColumns = xSize * zSize;
+            for (int columnIndex = 0; columnIndex < numColumns; columnIndex++)
             {
-                for (int x = 0; x < w; ++x)
+                rcSpan span = heightfield.spans[columnIndex];
+                // If there are no spans at this cell, just leave the data to index=0, count=0.
+                if (span == null)
                 {
-                    rcSpan? s = hf.spans![x + y * w];
-                    // If there are no spans at this cell, just leave the data to index=0, count=0.
-                    if (s == null)
-                    {
-                        continue;
-                    }
-                    rcCompactCell c;// =  chf.cells[x + y * w];
-                    c.index = (uint)idx;
-                    c.count = 0;
-
-                    while (s != null)
-                    {
-                        if (s.area != RC_NULL_AREA)
-                        {
-                            int bot = (int)s.smax;
-                            int top = s.next != null ? (int)s.next.smin : MAX_HEIGHT;
-                            chf.spans[idx].y = (ushort)rcClamp(bot, 0, 0xffff);
-                            chf.spans[idx].h = (byte)rcClamp(top - bot, 0, 0xff);
-                            chf.areas[idx] = s.area;
-                            idx++;
-                            c.count++;
-                        }
-                        s = s.next;
-                    }
-                    chf.cells[x + y * w] = c;
+                    continue;
                 }
+
+                rcCompactCell cell;
+                cell.index = currentCellIndex;
+                cell.count = 0;
+                while (span != null)
+                {
+                    if (span.area != RC_NULL_AREA)
+                    {
+                        // 构建空心体素
+                        int bot = span.smax;
+                        int top = span.next?.smin ?? RC_SPAN_MAX_HEIGHT;
+                        compactHeightfield.spans[currentCellIndex].y = (ushort)rcClamp(bot, 0, 0xffff);
+                        compactHeightfield.spans[currentCellIndex].h = (byte)rcClamp(top - bot, 0, 0xffff);
+                        compactHeightfield.areas[currentCellIndex] = span.area;
+                        currentCellIndex++;
+                        cell.count++;
+                    }
+
+                    span = span.next;
+                }
+                compactHeightfield.cells[columnIndex] = cell;
             }
 
+
             // Find neighbour connections.
+            // 最高62(63-1)层
             int MAX_LAYERS = RC_NOT_CONNECTED - 1;
-            int tooHighNeighbour = 0;
-            for (int y = 0; y < h; ++y)
+            int maxLayerIndex = 0;
+            int zStride = xSize; // for readability
+            for (int z = 0; z < zSize; ++z)
             {
-                for (int x = 0; x < w; ++x)
+                for (int x = 0; x < xSize; ++x)
                 {
-                    rcCompactCell c = chf.cells[x + y * w];
+                    rcCompactCell c = compactHeightfield.cells[x + z * zStride];
                     for (int i = (int)c.index, ni = (int)(c.index + c.count); i < ni; ++i)
                     {
-                        rcCompactSpan s = chf.spans[i];
+                        rcCompactSpan s = compactHeightfield.spans[i];
 
                         for (int dir = 0; dir < 4; ++dir)
                         {
                             rcSetCon(ref s, dir, RC_NOT_CONNECTED);
-                            int nx = x + rcGetDirOffsetX(dir);
-                            int ny = y + rcGetDirOffsetY(dir);
+                            int neighborX = x + rcGetDirOffsetX(dir);
+                            int neighborZ = z + rcGetDirOffsetY(dir);
                             // First check that the neighbour cell is in bounds.
-                            if (nx < 0 || ny < 0 || nx >= w || ny >= h)
+                            if (neighborX < 0 || neighborZ < 0 || neighborX >= xSize || neighborZ >= zSize)
                                 continue;
 
                             // Iterate over all neighbour spans and check if any of the is
                             // accessible from current cell.
-                            rcCompactCell nc = chf.cells[nx + ny * w];
-                            for (int k = (int)nc.index, nk = (int)(nc.index + nc.count); k < nk; ++k)
+                            rcCompactCell neighborCell = compactHeightfield.cells[neighborX + neighborZ * zStride];
+                            for (int k = (int)neighborCell.index, nk = (int)(neighborCell.index + neighborCell.count);
+                                 k < nk;
+                                 ++k)
                             {
-                                rcCompactSpan ns = chf.spans[k];
-                                int bot = Math.Max(s.y, ns.y);
-                                int top = Math.Min(s.y + s.h, ns.y + ns.h);
+                                rcCompactSpan neighborSpan = compactHeightfield.spans[k];
+                                int bot = Math.Max(s.y, neighborSpan.y);
+                                int top = Math.Min(s.y + s.h, neighborSpan.y + neighborSpan.h);
 
                                 // Check that the gap between the spans is walkable,
                                 // and that the climb height between the gaps is not too high.
-                                if ((top - bot) >= walkableHeight && Math.Abs((int)ns.y - (int)s.y) <= walkableClimb)
+                                // 满足可通过条件
+                                if (top - bot >= walkableHeight && Math.Abs(neighborSpan.y - s.y) <= walkableClimb)
                                 {
                                     // Mark direction as walkable.
-                                    int lidx = k - (int)nc.index;
-                                    if (lidx < 0 || lidx > MAX_LAYERS)
+                                    int layerIndex = k - (int)neighborCell.index;
+                                    if (layerIndex < 0 || layerIndex > MAX_LAYERS)
                                     {
-                                        tooHighNeighbour = Math.Max(tooHighNeighbour, lidx);
+                                        maxLayerIndex = Math.Max(maxLayerIndex, layerIndex);
                                         continue;
                                     }
-                                    rcSetCon(ref s, dir, lidx);
+
+                                    // 设置为与邻居的第layerIndex层连通
+                                    rcSetCon(ref s, dir, layerIndex);
                                     break;
                                 }
                             }
-
                         }
 
-                        chf.spans[i] = s;
+                        compactHeightfield.spans[i] = s;
                     }
                 }
             }
 
-            if (tooHighNeighbour > MAX_LAYERS)
+            if (maxLayerIndex > MAX_LAYERS)
             {
-                ctx.log(rcLogCategory.RC_LOG_ERROR, "rcBuildCompactHeightfield: Heightfield has too many layers " + tooHighNeighbour + " (max: " + MAX_LAYERS + ")");
+                ctx.log(rcLogCategory.RC_LOG_ERROR,
+                    "rcBuildCompactHeightfield: Heightfield has too many layers " + maxLayerIndex + " (max: " +
+                    MAX_LAYERS + ")");
             }
 
             ctx.stopTimer(rcTimerLabel.RC_TIMER_BUILD_COMPACTHEIGHTFIELD);
@@ -431,7 +479,6 @@ namespace RecastSharp
         /// If no logging or timers are required, just pass an instance of this 
         /// class through the Recast build process.
         ///
-
         /// @par
         ///
         /// Example:
@@ -444,7 +491,6 @@ namespace RecastSharp
         /// @ingroup recast
         public class rcContext
         {
-
             /// True if logging is enabled.
             bool m_logEnabled = true;
 
@@ -532,6 +578,7 @@ namespace RecastSharp
             {
                 return m_timerEnabled ? doGetAccumulatedTime(label) : -1;
             }
+
             public double getAccumulatedTimeHiResolution(rcTimerLabel label)
             {
                 return m_timerEnabled ? doGetAccumulatedTimeHiResolution(label) : -1.0;
@@ -539,13 +586,16 @@ namespace RecastSharp
 
 
             /// Clears all log entries.
-            protected virtual void doResetLog() { }
+            protected virtual void doResetLog()
+            {
+            }
 
             /// Logs a message.
             ///  @param[in]		category	The category of the message.
             ///  @param[in]		msg			The formatted message.
             protected virtual void doLog(rcLogCategory category, string msg)
-            { //int len unnecessary because c# string
+            {
+                //int len unnecessary because c# string
             }
 
             /// Clears all timers. (Resets all to unused.)
@@ -581,14 +631,16 @@ namespace RecastSharp
             {
                 return -1.0;
             }
-
         };
 
         /// Specifies a configuration to use when performing Recast builds.
         /// @ingroup recast
         public class rcConfig
         {
-            public rcConfig() { }
+            public rcConfig()
+            {
+            }
+
             public rcConfig(rcConfig other)
             {
                 width = other.width;
@@ -602,6 +654,7 @@ namespace RecastSharp
                     bmin[i] = other.bmin[i];
                     bmax[i] = other.bmax[i];
                 }
+
                 walkableSlopeAngle = other.walkableSlopeAngle;
                 walkableHeight = other.walkableHeight;
                 walkableClimb = other.walkableClimb;
@@ -681,25 +734,23 @@ namespace RecastSharp
         }
 
 
-
         /// Represents a span in a heightfield.
         /// @see rcHeightfield
         public class rcSpan
         {
-            public ushort smin;// : 13;			//< The lower limit of the span. [Limit: < #smax]
-            public ushort smax;// : 13;			//< The upper limit of the span. [Limit: <= #RC_SPAN_MAX_HEIGHT]
-            public byte area;// : 6;			//< The area id assigned to the span.
-            public ushort mask;
-            public uint connection;
-            public rcSpan? next = null; 			//< The next span higher up in column.
+            public ushort smin; // : 13;			//< The lower limit of the span. [Limit: < #smax]
+            public ushort smax; // : 13;			//< The upper limit of the span. [Limit: <= #RC_SPAN_MAX_HEIGHT]
+            public byte area; // : 6;			//< The area id assigned to the span.
+            public rcSpan next = null; //< The next span higher up in column.
         }
         // A memory pool used for quick allocation of spans within a heightfield.
         // @see rcHeightfield
 
         public class rcSpanPool
         {
-            public rcSpanPool? next = null;					//< The next span pool.
-            public rcSpan[] items = new rcSpan[RC_SPANS_PER_POOL];	//< Array of spans in the pool.
+            public rcSpanPool next = null; //< The next span pool.
+            public rcSpan[] items = new rcSpan[RC_SPANS_PER_POOL]; //< Array of spans in the pool.
+
             ///
             public rcSpanPool()
             {
@@ -714,74 +765,81 @@ namespace RecastSharp
         /// @ingroup recast
         public class rcHeightfield
         {
-            public int width;			//< The width of the heightfield. (Along the x-axis in cell units.)
-            public int height;			//< The height of the heightfield. (Along the z-axis in cell units.)
-            public float[] bmin = new float[3];  	//< The minimum bounds in world space. [(x, y, z)]
-            public float[] bmax = new float[3];		//< The maximum bounds in world space. [(x, y, z)]
-            public float cs;			//< The size of each cell. (On the xz-plane.)
-            public float ch;			//< The height of each cell. (The minimum increment along the y-axis.)
-            public rcSpan[] spans = null;//**  //< Heightfield of spans (width*height).
-            public rcSpanPool? pools = null;	//< Linked list of span pools.
-            public rcSpan? freelist = null;	//< The next free span.
+            public int width; //< The width of the heightfield. (Along the x-axis in cell units.)
+            public int height; //< The height of the heightfield. (Along the z-axis in cell units.)
+            public float[] bmin = new float[3]; //< The minimum bounds in world space. [(x, y, z)]
+            public float[] bmax = new float[3]; //< The maximum bounds in world space. [(x, y, z)]
+            public float cs; //< The size of each cell. (On the xz-plane.)
+            public float ch; //< The height of each cell. (The minimum increment along the y-axis.)
+            public rcSpan[] spans = null; //**  //< Heightfield of spans (width*height).
+            public rcSpanPool pools = null; //< Linked list of span pools.
+            public rcSpan freelist = null; //< The next free span.
         };
 
         /// Provides information on the content of a cell column in a compact heightfield. 
         public struct rcCompactCell
         {
-            public uint index;// : 24;	//< Index to the first span in the column.
-            public ushort count;// : 8;		//< Number of spans in the column.
+            public uint index; // : 24;	//< Index to the first span in the column.
+            public ushort count; // : 8;		//< Number of spans in the column.
         };
 
         /// Represents a span of unobstructed space within a compact heightfield.
         public struct rcCompactSpan
         {
-            public ushort y;			//< The lower extent of the span. (Measured from the heightfield's base.)
-            public ushort reg;			//< The id of the region the span belongs to. (Or zero if not in a region.)
-            public uint con;// : 24;		//< Packed neighbor connection data.
-            public ushort h;// : 8;			//< The height of the span.  (Measured from #y.)
+            public ushort y; //< The lower extent of the span. (Measured from the heightfield's base.)
+            public ushort reg; //< The id of the region the span belongs to. (Or zero if not in a region.)
+            public uint con; // : 24;		//< Packed neighbor connection data.
+            public ushort h; // : 8;			//< The height of the span.  (Measured from #y.)
         };
 
         /// A compact, static heightfield representing unobstructed space.
         /// @ingroup recast
         public class rcCompactHeightfield
         {
-            public int width;					//< The width of the heightfield. (Along the x-axis in cell units.)
-            public int height;					//< The height of the heightfield. (Along the z-axis in cell units.)
-            public int spanCount;				//< The number of spans in the heightfield.
-            public int walkableHeight;			//< The walkable height used during the build of the field.  (See: rcConfig::walkableHeight)
-            public int walkableClimb;			//< The walkable climb used during the build of the field. (See: rcConfig::walkableClimb)
-            public int borderSize;				//< The AABB border size used during the build of the field. (See: rcConfig::borderSize)
-            public ushort maxDistance;	//< The maximum distance value of any span within the field. 
-            public ushort maxRegions;	//< The maximum region id of any span within the field. 
-            public float[] bmin = new float[3];				//< The minimum bounds in world space. [(x, y, z)]
-            public float[] bmax = new float[3];				//< The maximum bounds in world space. [(x, y, z)]
-            public float cs;					//< The size of each cell. (On the xz-plane.)
-            public float ch;					//< The height of each cell. (The minimum increment along the y-axis.)
-            public rcCompactCell[]? cells = null;		//< Array of cells. [Size: #width*#height]
-            public rcCompactSpan[]? spans = null;		//< Array of spans. [Size: #spanCount]
-            public ushort[]? dist = null;		//< Array containing border distance data. [Size: #spanCount]
-            public byte[]? areas = null;		//< Array containing area id data. [Size: #spanCount]
+            public int width; //< The width of the heightfield. (Along the x-axis in cell units.)
+            public int height; //< The height of the heightfield. (Along the z-axis in cell units.)
+            public int spanCount; //< The number of spans in the heightfield.
+
+            public int
+                walkableHeight; //< The walkable height used during the build of the field.  (See: rcConfig::walkableHeight)
+
+            public int
+                walkableClimb; //< The walkable climb used during the build of the field. (See: rcConfig::walkableClimb)
+
+            public int
+                borderSize; //< The AABB border size used during the build of the field. (See: rcConfig::borderSize)
+
+            public ushort maxDistance; //< The maximum distance value of any span within the field. 
+            public ushort maxRegions; //< The maximum region id of any span within the field. 
+            public float[] bmin = new float[3]; //< The minimum bounds in world space. [(x, y, z)]
+            public float[] bmax = new float[3]; //< The maximum bounds in world space. [(x, y, z)]
+            public float cs; //< The size of each cell. (On the xz-plane.)
+            public float ch; //< The height of each cell. (The minimum increment along the y-axis.)
+            public rcCompactCell[] cells = null; //< Array of cells. [Size: #width*#height]
+            public rcCompactSpan[] spans = null; //< Array of spans. [Size: #spanCount]
+            public ushort[] dist = null; //< Array containing border distance data. [Size: #spanCount]
+            public byte[] areas = null; //< Array containing area id data. [Size: #spanCount]
         };
 
         /// Represents a heightfield layer within a layer set.
         /// @see rcHeightfieldLayerSet
         public class rcHeightfieldLayer
         {
-            public float[] bmin = new float[3];				//< The minimum bounds in world space. [(x, y, z)]
-            public float[] bmax = new float[3];				//< The maximum bounds in world space. [(x, y, z)]
-            public float cs;					//< The size of each cell. (On the xz-plane.)
-            public float ch;					//< The height of each cell. (The minimum increment along the y-axis.)
-            public int width;					//< The width of the heightfield. (Along the x-axis in cell units.)
-            public int height;					//< The height of the heightfield. (Along the z-axis in cell units.)
-            public int minx;					//< The minimum x-bounds of usable data.
-            public int maxx;					//< The maximum x-bounds of usable data.
-            public int miny;					//< The minimum y-bounds of usable data. (Along the z-axis.)
-            public int maxy;					//< The maximum y-bounds of usable data. (Along the z-axis.)
-            public int hmin;					//< The minimum height bounds of usable data. (Along the y-axis.)
-            public int hmax;					//< The maximum height bounds of usable data. (Along the y-axis.)
-            public byte[]? heights;		//< The heightfield. [Size: (width - borderSize*2) * (h - borderSize*2)]
-            public byte[]? areas;		//< Area ids. [Size: Same as #heights]
-            public byte[]? cons;		//< Packed neighbor connection information. [Size: Same as #heights]
+            public float[] bmin = new float[3]; //< The minimum bounds in world space. [(x, y, z)]
+            public float[] bmax = new float[3]; //< The maximum bounds in world space. [(x, y, z)]
+            public float cs; //< The size of each cell. (On the xz-plane.)
+            public float ch; //< The height of each cell. (The minimum increment along the y-axis.)
+            public int width; //< The width of the heightfield. (Along the x-axis in cell units.)
+            public int height; //< The height of the heightfield. (Along the z-axis in cell units.)
+            public int minx; //< The minimum x-bounds of usable data.
+            public int maxx; //< The maximum x-bounds of usable data.
+            public int miny; //< The minimum y-bounds of usable data. (Along the z-axis.)
+            public int maxy; //< The maximum y-bounds of usable data. (Along the z-axis.)
+            public int hmin; //< The minimum height bounds of usable data. (Along the y-axis.)
+            public int hmax; //< The maximum height bounds of usable data. (Along the y-axis.)
+            public byte[] heights; //< The heightfield. [Size: (width - borderSize*2) * (h - borderSize*2)]
+            public byte[] areas; //< Area ids. [Size: Same as #heights]
+            public byte[] cons; //< Packed neighbor connection information. [Size: Same as #heights]
         };
 
         /// Represents a set of heightfield layers.
@@ -789,19 +847,20 @@ namespace RecastSharp
         /// @see rcAllocHeightfieldLayerSet, rcFreeHeightfieldLayerSet 
         public class rcHeightfieldLayerSet
         {
-            public rcHeightfieldLayer[]? layers = null;			//< The layers in the set. [Size: #nlayers]
-            public int nlayers;						//< The number of layers in the set.
+            public rcHeightfieldLayer[]? layers = null; //< The layers in the set. [Size: #nlayers]
+            public int nlayers; //< The number of layers in the set.
         };
 
         /// Represents a simple, non-overlapping contour in field space.
         public class rcContour
         {
-            public int[]? verts;			//< Simplified contour vertex and connection data. [Size: 4 * #nverts]
-            public int nverts;			//< The number of vertices in the simplified contour. 
-            public int[]? rverts;		//< Raw contour vertex and connection data. [Size: 4 * #nrverts]
-            public int nrverts;		//< The number of vertices in the raw contour. 
-            public ushort reg;	//< The region id of the contour.
-            public byte area;	//< The area id of the contour.
+            public int[]? verts; //< Simplified contour vertex and connection data. [Size: 4 * #nverts]
+            public int nverts; //< The number of vertices in the simplified contour. 
+            public int[]? rverts; //< Raw contour vertex and connection data. [Size: 4 * #nrverts]
+            public int nrverts; //< The number of vertices in the raw contour. 
+            public ushort reg; //< The region id of the contour.
+            public byte area; //< The area id of the contour.
+
             ///
             public void dumpToTxt(StreamWriter stream)
             {
@@ -811,15 +870,19 @@ namespace RecastSharp
                 for (int i = 0; i < nverts; ++i)
                 {
                     int vIndex = i * 4;
-                    stream.WriteLine("\t\tverts[" + i + "]: x:" + verts![vIndex] + " y:" + verts[vIndex + 1] + " z:" + verts[vIndex + 2] + " ?:" + verts[vIndex + 3]);
+                    stream.WriteLine("\t\tverts[" + i + "]: x:" + verts![vIndex] + " y:" + verts[vIndex + 1] + " z:" +
+                                     verts[vIndex + 2] + " ?:" + verts[vIndex + 3]);
                 }
+
                 stream.WriteLine("\tnrverts: " + nrverts);
                 for (int i = 0; i < nrverts; ++i)
                 {
                     int vIndex = i * 4;
-                    stream.WriteLine("\t\trverts[" + i + "]: x:" + rverts![vIndex] + " y:" + rverts[vIndex + 1] + " z:" + rverts[vIndex + 2] + " ?:" + rverts[vIndex + 3]);
+                    stream.WriteLine("\t\trverts[" + i + "]: x:" + rverts![vIndex] + " y:" + rverts[vIndex + 1] +
+                                     " z:" + rverts[vIndex + 2] + " ?:" + rverts[vIndex + 3]);
                 }
             }
+
             public override string ToString()
             {
                 StringBuilder sb = new StringBuilder();
@@ -829,14 +892,18 @@ namespace RecastSharp
                 for (int i = 0; i < nverts; ++i)
                 {
                     int vIndex = i * 4;
-                    sb.AppendLine("\t\tverts[" + i + "]: x:" + verts![vIndex] + " y:" + verts[vIndex + 1] + " z:" + verts[vIndex + 2] + " ?:" + verts[vIndex + 3]);
+                    sb.AppendLine("\t\tverts[" + i + "]: x:" + verts![vIndex] + " y:" + verts[vIndex + 1] + " z:" +
+                                  verts[vIndex + 2] + " ?:" + verts[vIndex + 3]);
                 }
+
                 sb.AppendLine("\tnrverts: " + nrverts);
                 for (int i = 0; i < nrverts; ++i)
                 {
                     int vIndex = i * 4;
-                    sb.AppendLine("\t\trverts[" + i + "]: x:" + rverts![vIndex] + " y:" + rverts[vIndex + 1] + " z:" + rverts[vIndex + 2] + " ?:" + rverts[vIndex + 3]);
+                    sb.AppendLine("\t\trverts[" + i + "]: x:" + rverts![vIndex] + " y:" + rverts[vIndex + 1] + " z:" +
+                                  rverts[vIndex + 2] + " ?:" + rverts[vIndex + 3]);
                 }
+
                 return sb.ToString();
             }
         };
@@ -845,16 +912,19 @@ namespace RecastSharp
         /// @ingroup recast
         public class rcContourSet
         {
-            public rcContour[]? conts = null;	//< An array of the contours in the set. [Size: #nconts]
-            public int nconts;			//< The number of contours in the set.
-            public float[] bmin = new float[3];  	//< The minimum bounds in world space. [(x, y, z)]
-            public float[] bmax = new float[3];		//< The maximum bounds in world space. [(x, y, z)]
-            public float cs;			//< The size of each cell. (On the xz-plane.)
-            public float ch;			//< The height of each cell. (The minimum increment along the y-axis.)
-            public int width;			//< The width of the set. (Along the x-axis in cell units.) 
-            public int height;			//< The height of the set. (Along the z-axis in cell units.) 
-            public int borderSize;      //< The AABB border size used to generate the source data from which the contours were derived.
-            public float maxError;     //< The max edge error that this contour set was simplified with.
+            public rcContour[]? conts = null; //< An array of the contours in the set. [Size: #nconts]
+            public int nconts; //< The number of contours in the set.
+            public float[] bmin = new float[3]; //< The minimum bounds in world space. [(x, y, z)]
+            public float[] bmax = new float[3]; //< The maximum bounds in world space. [(x, y, z)]
+            public float cs; //< The size of each cell. (On the xz-plane.)
+            public float ch; //< The height of each cell. (The minimum increment along the y-axis.)
+            public int width; //< The width of the set. (Along the x-axis in cell units.) 
+            public int height; //< The height of the set. (Along the z-axis in cell units.) 
+
+            public int
+                borderSize; //< The AABB border size used to generate the source data from which the contours were derived.
+
+            public float maxError; //< The max edge error that this contour set was simplified with.
 
             public override string ToString()
             {
@@ -884,21 +954,24 @@ namespace RecastSharp
         /// @ingroup recast
         public class rcPolyMesh
         {
-            public ushort[]? verts = null;	//< The mesh vertices. [Form: (x, y, z) * #nverts]
-            public ushort[]? polys = null;	//< Polygon and neighbor data. [Length: #maxpolys * 2 * #nvp]
-            public ushort[]? regs = null;	//< The region id assigned to each polygon. [Length: #maxpolys]
-            public ushort[]? flags = null;	//< The user defined flags for each polygon. [Length: #maxpolys]
-            public byte[]? areas = null;	//< The area id assigned to each polygon. [Length: #maxpolys]
-            public int nverts;				//< The number of vertices.
-            public int npolys;				//< The number of polygons.
-            public int maxpolys;			//< The number of allocated polygons.
-            public int nvp;				//< The maximum number of vertices per polygon.
-            public float[] bmin = new float[3];			//< The minimum bounds in world space. [(x, y, z)]
-            public float[] bmax = new float[3];			//< The maximum bounds in world space. [(x, y, z)]
-            public float cs;				//< The size of each cell. (On the xz-plane.)
-            public float ch;				//< The height of each cell. (The minimum increment along the y-axis.)
-            public int borderSize;          //< The AABB border size used to generate the source data from which the mesh was derived.
-            public float maxEdgeError;      //< The max error of the polygon edges in the mesh.
+            public ushort[]? verts = null; //< The mesh vertices. [Form: (x, y, z) * #nverts]
+            public ushort[]? polys = null; //< Polygon and neighbor data. [Length: #maxpolys * 2 * #nvp]
+            public ushort[]? regs = null; //< The region id assigned to each polygon. [Length: #maxpolys]
+            public ushort[]? flags = null; //< The user defined flags for each polygon. [Length: #maxpolys]
+            public byte[]? areas = null; //< The area id assigned to each polygon. [Length: #maxpolys]
+            public int nverts; //< The number of vertices.
+            public int npolys; //< The number of polygons.
+            public int maxpolys; //< The number of allocated polygons.
+            public int nvp; //< The maximum number of vertices per polygon.
+            public float[] bmin = new float[3]; //< The minimum bounds in world space. [(x, y, z)]
+            public float[] bmax = new float[3]; //< The maximum bounds in world space. [(x, y, z)]
+            public float cs; //< The size of each cell. (On the xz-plane.)
+            public float ch; //< The height of each cell. (The minimum increment along the y-axis.)
+
+            public int
+                borderSize; //< The AABB border size used to generate the source data from which the mesh was derived.
+
+            public float maxEdgeError; //< The max error of the polygon edges in the mesh.
 
             public override string ToString()
             {
@@ -915,8 +988,10 @@ namespace RecastSharp
                 for (int i = 0; i < nverts; ++i)
                 {
                     int vIndex = i * 3;
-                    sb.AppendLine("\tverts[" + i + "]: x:" + verts![vIndex] + " y:" + verts[vIndex + 1] + " z:" + verts[vIndex + 2]);
+                    sb.AppendLine("\tverts[" + i + "]: x:" + verts![vIndex] + " y:" + verts[vIndex + 1] + " z:" +
+                                  verts[vIndex + 2]);
                 }
+
                 sb.AppendLine("\tmaxpolys: " + maxpolys);
                 sb.AppendLine("\tnvp: " + nvp);
                 sb.AppendLine("\tnpolys: " + npolys);
@@ -936,6 +1011,7 @@ namespace RecastSharp
                     {
                         sb.Append(" " + j + ":" + polys![vIndex + j]);
                     }
+
                     sb.AppendLine();
                 }
 
@@ -943,6 +1019,7 @@ namespace RecastSharp
                 {
                     sb.AppendLine("regs[" + i + "]: " + regs![i]);
                 }
+
                 sb.AppendLine();
                 for (int i = 0; i < flags!.Length; ++i)
                 {
@@ -989,6 +1066,7 @@ namespace RecastSharp
                         sb.AppendLine("f " + a + " " + b + " " + c);
                     }
                 }
+
                 return sb.ToString();
             }
         };
@@ -998,12 +1076,12 @@ namespace RecastSharp
         /// @ingroup recast
         public class rcPolyMeshDetail
         {
-            public uint[]? meshes = null;	//< The sub-mesh data. [Size: 4*#nmeshes] 
-            public float[]? verts = null;			//< The mesh vertices. [Size: 3*#nverts] 
-            public byte[]? tris = null;	//< The mesh triangles. [Size: 4*#ntris] 
-            public int nmeshes;			//< The number of sub-meshes defined by #meshes.
-            public int nverts;				//< The number of vertices in #verts.
-            public int ntris;               //< The number of triangles in #tris.
+            public uint[]? meshes = null; //< The sub-mesh data. [Size: 4*#nmeshes] 
+            public float[]? verts = null; //< The mesh vertices. [Size: 3*#nverts] 
+            public byte[]? tris = null; //< The mesh triangles. [Size: 4*#ntris] 
+            public int nmeshes; //< The number of sub-meshes defined by #meshes.
+            public int nverts; //< The number of vertices in #verts.
+            public int ntris; //< The number of triangles in #tris.
 
             public override string ToString()
             {
@@ -1013,19 +1091,24 @@ namespace RecastSharp
                 for (int i = 0; i < nmeshes; ++i)
                 {
                     int vIndex = i * 4;
-                    sb.AppendLine("\tmeshes[" + i + "]: a:" + meshes![vIndex] + " b:" + meshes[vIndex + 1] + " c:" + meshes[vIndex + 2] + " d:" + meshes[vIndex + 3]);
+                    sb.AppendLine("\tmeshes[" + i + "]: a:" + meshes![vIndex] + " b:" + meshes[vIndex + 1] + " c:" +
+                                  meshes[vIndex + 2] + " d:" + meshes[vIndex + 3]);
                 }
+
                 sb.AppendLine("nverts: " + nverts);
                 for (int i = 0; i < nverts; ++i)
                 {
                     int vIndex = i * 3;
-                    sb.AppendLine("\tverts[" + i + "]: x:" + verts![vIndex] + " y:" + verts[vIndex + 1] + " z:" + verts[vIndex + 2]);
+                    sb.AppendLine("\tverts[" + i + "]: x:" + verts![vIndex] + " y:" + verts[vIndex + 1] + " z:" +
+                                  verts[vIndex + 2]);
                 }
+
                 sb.AppendLine("ntris: " + ntris);
                 for (int i = 0; i < ntris; ++i)
                 {
                     int vIndex = i * 4;
-                    sb.AppendLine("\ttris[" + i + "]: a:" + tris![vIndex] + " b:" + tris[vIndex + 1] + " c:" + tris[vIndex + 2] + " d:" + tris[vIndex + 3]);
+                    sb.AppendLine("\ttris[" + i + "]: a:" + tris![vIndex] + " b:" + tris[vIndex + 1] + " c:" +
+                                  tris[vIndex + 2] + " d:" + tris[vIndex + 3]);
                 }
 
                 return sb.ToString();
@@ -1059,9 +1142,9 @@ namespace RecastSharp
                     for (uint j = 0; j < _ntris; ++j)
                     {
                         sb.AppendLine("f "
-                                        + ((int)(bverts + tris![trisIndex + j * 4 + 0]) + 1) + " "
-                                        + ((int)(bverts + tris[trisIndex + j * 4 + 1]) + 1) + " "
-                                        + ((int)(bverts + tris[trisIndex + j * 4 + 2]) + 1) + " ");
+                                      + ((int)(bverts + tris![trisIndex + j * 4 + 0]) + 1) + " "
+                                      + ((int)(bverts + tris[trisIndex + j * 4 + 1]) + 1) + " "
+                                      + ((int)(bverts + tris[trisIndex + j * 4 + 2]) + 1) + " ");
                     }
                 }
 
@@ -1108,8 +1191,8 @@ namespace RecastSharp
         /// @see rcBuildContours
         public enum rcBuildContoursFlags
         {
-            RC_CONTOUR_TESS_WALL_EDGES = 0x01,	//< Tessellate solid (impassable) edges during contour simplification.
-            RC_CONTOUR_TESS_AREA_EDGES = 0x02,	//< Tessellate edges between areas during contour simplification.
+            RC_CONTOUR_TESS_WALL_EDGES = 0x01, //< Tessellate solid (impassable) edges during contour simplification.
+            RC_CONTOUR_TESS_AREA_EDGES = 0x02, //< Tessellate edges between areas during contour simplification.
         };
 
         /// Applied to the region id field of contour vertices in order to extract the region id.
@@ -1139,11 +1222,12 @@ namespace RecastSharp
 
         /// @name General helper functions
         /// @{
-
         /// Used to ignore a function parameter.  VS complains about unused parameters
         /// and this silences the warning.
         ///  @param [in] _ Unused parameter
-        public static void rcIgnoreUnused<T>(T t) { }
+        public static void rcIgnoreUnused<T>(T t)
+        {
+        }
 
         //Use C# for this kind of things
         /// Swaps the values of the two parameters.
@@ -1200,18 +1284,17 @@ namespace RecastSharp
         /// @}
         /// @name Vector helper functions.
         /// @{
-
         /// Derives the cross product of two vectors. (@p v1 x @p v2)
         ///  @param[out]	dest	The cross product. [(x, y, z)]
         ///  @param[in]		v1		A Vector [(x, y, z)]
         ///  @param[in]		v2		A vector [(x, y, z)]
-
         public static void rcVcross(float[] dest, float[] v1, float[] v2)
         {
             dest[0] = v1[1] * v2[2] - v1[2] * v2[1];
             dest[1] = v1[2] * v2[0] - v1[0] * v2[2];
             dest[2] = v1[0] * v2[1] - v1[1] * v2[0];
         }
+
         public static void rcVcross(float[] dest, int destStart, float[] v1, int v1Start, float[] v2, int v2Start)
         {
             dest[destStart + 0] = v1[v1Start + 1] * v2[v2Start + 2] - v1[v1Start + 2] * v2[v2Start + 1];
@@ -1313,6 +1396,7 @@ namespace RecastSharp
             dest[1] = v[1];
             dest[2] = v[2];
         }
+
         public static void rcVcopy(float[] dest, int destStart, float[] v, int vStart)
         {
             dest[destStart + 0] = v[vStart + 0];
@@ -1639,28 +1723,31 @@ namespace RecastSharp
 
 
         /// Sets the neighbor connection data for the specified direction.
-        ///  @param[in]		s		The span to update.
-        ///  @param[in]		dir		The direction to set. [Limits: 0 <= value < 4]
-        ///  @param[in]		i		The index of the neighbor span.
-        public static void rcSetCon(ref rcCompactSpan s, int dir, int i)
+        /// @param[in]		span			The span to update.
+        /// @param[in]		direction		The direction to set. [Limits: 0 <= value < 4]
+        /// @param[in]		neighborIndex	The index of the neighbor span.
+        public static void rcSetCon(ref rcCompactSpan span, int direction, int neighborIndex)
         {
-            uint udir = (uint)dir;
+            uint udir = (uint)direction;
             int shift = (int)(udir * 6);
-            uint con = s.con;
-            s.con = (uint)(con & ~(0x3f << shift)) | (((uint)i & 0x3f) << shift);
+            uint con = span.con;
+            span.con = (uint)(con & ~(0x3f << shift)) | (((uint)neighborIndex & 0x3f) << shift);
         }
 
         /// Gets neighbor connection data for the specified direction.
-        ///  @param[in]		s		The span to check.
-        ///  @param[in]		dir		The direction to check. [Limits: 0 <= value < 4]
-        ///  @return The neighbor connection data for the specified direction,
-        ///  	or #RC_NOT_CONNECTED if there is no connection.
-        public static int rcGetCon(rcCompactSpan s, int dir)
+        /// @param[in]		span		The span to check.
+        /// @param[in]		direction	The direction to check. [Limits: 0 <= value < 4]
+        /// @return The neighbor connection data for the specified direction, or #RC_NOT_CONNECTED if there is no connection.
+        public static int rcGetCon(rcCompactSpan span, int direction)
         {
-            uint udir = (uint)dir;
+            uint udir = (uint)direction;
             int shift = (int)(udir * 6);
-            return (int)((s.con >> shift) & 0x3f);
+            return (int)((span.con >> shift) & 0x3f);
         }
+
+        private static readonly int[] DirOffsetX = { -1, 0, 1, 0, };
+        private static readonly int[] DirOffsetY = { 0, 1, 0, -1 };
+        private static readonly int[] DirForOffset = { 3, 0, -1, 2, 1 };
 
         /// Gets the standard width (x-axis) offset for the specified direction.
         ///  @param[in]		dir		The direction. [Limits: 0 <= value < 4]
@@ -1668,8 +1755,7 @@ namespace RecastSharp
         ///  	in the direction.
         public static int rcGetDirOffsetX(int dir)
         {
-            int[] offset = new int[] { -1, 0, 1, 0, };
-            return offset[dir & 0x03];
+            return DirOffsetX[dir & 0x03];
         }
 
         /// Gets the standard height (z-axis) offset for the specified direction.
@@ -1678,8 +1764,7 @@ namespace RecastSharp
         ///  	in the direction.
         public static int rcGetDirOffsetY(int dir)
         {
-            int[] offset = new int[] { 0, 1, 0, -1 };
-            return offset[dir & 0x03];
+            return DirOffsetY[dir & 0x03];
         }
 
         /// Gets the direction for the specified offset. One of x and y should be 0.
@@ -1688,8 +1773,7 @@ namespace RecastSharp
         ///  @return The direction that represents the offset.
         public static int rcGetDirForOffset(int x, int y)
         {
-            int[] dirs = { 3, 0, -1, 2, 1 };
-            return dirs[((y + 1) << 1) + x];
+            return DirForOffset[((y + 1) << 1) + x];
         }
 
         /// @}
@@ -1784,5 +1868,4 @@ namespace RecastSharp
     // Due to the large amount of detail documentation for this file, 
     // the content normally located at the end of the header file has been separated
     // out to a file in /Docs/Extern.
-
 }

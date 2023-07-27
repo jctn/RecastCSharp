@@ -114,12 +114,12 @@ namespace RecastSharp
 
                 for (int x = borderSize; x < w - borderSize; ++x)
                 {
-                    rcCompactCell c = chf.cells![x + y * w];
+                    rcCompactCell c = chf.cells[x + y * w];
 
                     for (int i = (int)c.index, ni = (int)(c.index + c.count); i < ni; ++i)
                     {
-                        rcCompactSpan s = chf.spans![i];
-                        if (chf.areas![i] == RC_NULL_AREA) continue;
+                        rcCompactSpan s = chf.spans[i];
+                        if (chf.areas[i] == RC_NULL_AREA) continue;
 
                         byte sid = 0xff;
 

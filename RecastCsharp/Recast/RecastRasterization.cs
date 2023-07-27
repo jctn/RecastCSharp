@@ -70,81 +70,80 @@ namespace RecastSharp
 
         static bool addSpan(rcHeightfield hf, int x, int y,
             ushort smin, ushort smax,
-            byte area, int flagMergeThr, ushort mask = 0)
+            byte area, int flagMergeThr)
         {
-            int idx = x + y * hf.width;
+            rcSpan newSpan = allocSpan(hf);
+            newSpan.smin = smin;
+            newSpan.smax = smax;
+            newSpan.area = area;
+            newSpan.next = null;
 
-            rcSpan s = allocSpan(hf);
-            s.smin = smin;
-            s.smax = smax;
-            s.area = area;
-            s.mask = mask;
-            s.connection = 0;
-            s.next = null;
+            int columnIndex = x + y * hf.width;
+
 
             // Empty cell, add the first span.
-            if (hf.spans![idx] == null)
+            if (hf.spans[columnIndex] == null)
             {
-                hf.spans[idx] = s;
+                hf.spans[columnIndex] = newSpan;
                 return true;
             }
 
-            rcSpan prev = null;
-            rcSpan cur = hf.spans[idx];
+            rcSpan previousSpan = null;
+            rcSpan currentSpan = hf.spans[columnIndex];
 
-            // Insert and merge spans.
-            while (cur != null)
+            // Insert the new span, possibly merging it with existing spans.
+            while (currentSpan != null)
             {
-                if (cur.smin > s.smax)
+                if (currentSpan.smin > newSpan.smax)
                 {
-                    // Current span is further than the new span, break.
+                    // Current span is completely after the new span, break.
                     break;
                 }
 
-                if (cur.smax < s.smin)
+                if (currentSpan.smax < newSpan.smin)
                 {
-                    // Current span is before the new span advance.
-                    prev = cur;
-                    cur = cur.next;
-                }
-                else if (s.mask == cur.mask || s.mask == 0)
-                {
-                    // Merge flags.
-                    if (Math.Abs(s.smax - cur.smax) <= flagMergeThr)
-                        s.area = Math.Max(s.area, cur.area);
-
-                    // Merge spans.
-                    if (cur.smin < s.smin)
-                        s.smin = cur.smin;
-                    if (cur.smax > s.smax)
-                        s.smax = cur.smax;
-
-                    // Remove current span.
-                    rcSpan next = cur.next;
-                    freeSpan(hf, cur);
-                    if (prev != null)
-                        prev.next = next;
-                    else
-                        hf.spans[idx] = next;
-                    cur = next;
+                    // Current span is completely before the new span.  Keep going.
+                    previousSpan = currentSpan;
+                    currentSpan = currentSpan.next;
                 }
                 else
                 {
-                    freeSpan(hf, s);
-                    return true;
+                    // The new span overlaps with an existing span.  Merge them.
+                    if (currentSpan.smin < newSpan.smin)
+                        newSpan.smin = currentSpan.smin;
+                    if (currentSpan.smax > newSpan.smax)
+                        newSpan.smax = currentSpan.smax;
+
+                    // Merge flags.
+                    if (Math.Abs(newSpan.smax - currentSpan.smax) <= flagMergeThr)
+                    {
+                        // Higher area ID numbers indicate higher resolution priority.
+                        newSpan.area = Math.Max(newSpan.area, currentSpan.area);
+                    }
+
+                    // Remove the current span since it's now merged with newSpan.
+                    // Keep going because there might be other overlapping spans that also need to be merged.
+                    rcSpan next = currentSpan.next;
+                    freeSpan(hf, currentSpan);
+                    if (previousSpan != null)
+                        previousSpan.next = next;
+                    else
+                        hf.spans[columnIndex] = next;
+                    currentSpan = next;
                 }
             }
 
-            // Insert new span.
-            if (prev != null)
+            // Insert new span after prev
+            if (previousSpan != null)
             {
-                s.next = prev.next;
-                prev.next = s;
+                newSpan.next = previousSpan.next;
+                previousSpan.next = newSpan;
             }
             else
             {
-                s.next = hf.spans[idx];
-                hf.spans[idx] = s;
+                // This span should go before the others in the list
+                newSpan.next = hf.spans[columnIndex];
+                hf.spans[columnIndex] = newSpan;
             }
 
             return true;
@@ -159,10 +158,10 @@ namespace RecastSharp
         /// @see rcHeightfield, rcSpan.
         public static bool rcAddSpan(rcContext ctx, rcHeightfield hf, int x, int y,
             ushort smin, ushort smax,
-            byte area, int flagMergeThr, ushort mask)
+            byte area, int flagMergeThr)
         {
             //	Debug.Assert(ctx != null, "rcContext is null");
-            if (!addSpan(hf, x, y, smin, smax, area, flagMergeThr, mask))
+            if (!addSpan(hf, x, y, smin, smax, area, flagMergeThr))
             {
                 ctx.log(rcLogCategory.RC_LOG_ERROR, "rcAddSpan: Out of memory.");
                 return false;
@@ -235,7 +234,7 @@ namespace RecastSharp
             byte area, rcHeightfield hf,
             float[] bmin, float[] bmax,
             float cs, float ics, float ich,
-            int flagMergeThr, ushort mask = 0)
+            int flagMergeThr)
         {
             int w = hf.width;
             int h = hf.height;
@@ -340,7 +339,7 @@ namespace RecastSharp
                     ushort ismin = (ushort)rcClamp((int)Math.Floor(smin * ich), 0, RC_SPAN_MAX_HEIGHT);
                     ushort ismax = (ushort)rcClamp((int)Math.Ceiling(smax * ich), (int)ismin + 1, RC_SPAN_MAX_HEIGHT);
 
-                    if (!addSpan(hf, x, y, ismin, ismax, area, flagMergeThr, mask))
+                    if (!addSpan(hf, x, y, ismin, ismax, area, flagMergeThr))
                     {
                         return false;
                     }
@@ -378,7 +377,7 @@ namespace RecastSharp
         ///
         /// @see rcHeightfield
         public static bool rcRasterizeTriangles(rcContext ctx, float[] verts, int nv,
-            int[] tris, byte[] areas, ushort[] masks, int nt,
+            int[] tris, byte[] areas, int nt,
             rcHeightfield solid, int flagMergeThr)
         {
             Debug.Assert(ctx != null, "rcContext is null");
@@ -396,7 +395,7 @@ namespace RecastSharp
                 // Rasterize.
                 if (!rasterizeTri(verts, v0Start, verts, v1Start, verts, v2Start, areas[i], solid, solid.bmin,
                         solid.bmax,
-                        solid.cs, ics, ich, flagMergeThr, masks[i]))
+                        solid.cs, ics, ich, flagMergeThr))
                 {
                     ctx.log(rcLogCategory.RC_LOG_ERROR, "rcRasterizeTriangles: Out of memory.");
                     return false;
