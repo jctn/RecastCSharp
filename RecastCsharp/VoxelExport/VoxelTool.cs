@@ -847,6 +847,10 @@ namespace RecastSharp
         #region 密闭空间合并
 
         private ReverseSpan[] _reverseSpans;
+        private int[] m_poolQueue;
+        private int m_poolSize;
+        
+        private ReverseSpan[][] m_neighborPool;
 
         private void GenReverseSpan()
         {
@@ -902,7 +906,129 @@ namespace RecastSharp
 
         private void DoNeighbor()
         {
-            
+            int w = _solid.width;
+            int h = _solid.height;
+            m_poolQueue = new int[w*h];
+            m_poolSize = 0;
+            m_neighborPool = new ReverseSpan[w*h][];
+            //first
+            FindNeighbor(_reverseSpans[0], 0, 0);
+            //other
+            int ox = 0 ,oz = 0;
+            ReverseSpan popSpan = PopPool(ref ox, ref oz);
+            while (popSpan ! = null)
+            {
+                FindNeighbor(popSpan, ox, oz);
+                popSpan = PopPool(ref ox, ref oz);
+            }
+        }
+
+        private void FindNeighbor(ReverseSpan curs, int x, int z)
+        {
+            int w = _solid.width;
+            int h = _solid.height;
+            for (int i = 0; i < 3; i++)
+            {
+                for (int j = 0; j < 3; j++)
+                {
+                    int fromx = x - 1 + i;
+                    int fromz = z - 1 + j;
+                    if(fromx < 0 || fromx >= w || fromz < 0 || fromz >= h)
+                        continue;
+                    if(fromx == x && fromz == z)
+                        continue;
+                    int index = fromx + fromz * w;
+                    ReverseSpan fspan = _reverseSpans[index];
+                    while (fspan != null)
+                    {
+                        if(fspan.flag == 0)
+                        {
+                            if ((fspan.smax <= curs.smax && fspan.smax >= curs.smin) ||
+                                (fspan.smin <= curs.smax && fspan.smin >= curs.smin) ||
+                                (curs.smin <= fspan.smax && curs.smin >= fspan.smin) ||
+                                (curs.smin <= fspan.smax && curs.smin >= fspan.smin))
+                            {
+                                fspan.flag = 1;
+                                if (!m_neighborPool[index])
+                                {
+                                    m_neighborPool[index] = fspan;
+                                    m_poolQueue[m_poolSize++] = index;
+                                }
+                                else
+                                {
+                                    ReverseSpan s = m_neighborPool[index];
+                                    m_neighborPool[index] = span;
+                                    span->link = s;
+                                }
+                            }
+                        }
+                        fspan = fspan.next;
+                    }
+                }
+            }
+        }
+
+        private void doSolidArea()
+        {
+            int w = _solid.width;
+            int h = _solid.height;
+            for (int z = 0; z < h; z++)
+            {
+                for (int x = 0; x < w; x++)
+                {
+                    int index = x + z * w;
+                    Recast.rcSpan s = _solid.spans[index];
+                    if (s == null)
+                    {
+                        continue;
+                    }
+                    ReverseSpan reverseSpan = _reverseSpans[index];
+                    if (reverseSpan == null)
+                    {
+                        continue;
+                    }
+                    if (s.smin != 0) invs = invs.next;
+                    while (s)
+                    {
+                        if (s.area == RC_WALKABLE_AREA)
+                        {
+                            if (invs)
+                            {
+                                if (invs.flag != 1 || invs.smax - invs.smin < 3)
+                                {
+                                    s.area = RC_NULL_AREA;
+                                }
+                            }
+                        }
+                        s = s.next;
+                        invs = invs.next;
+                    }
+                }
+            }
+        }
+        
+        private ReverseSpan PopPool(ref int x, ref int z)
+        {
+            if (m_poolSize <= 0 || m_poolSize >= _solid.width * _solid.height+ 1)
+            {
+                return null;
+            }
+
+            ReverseSpan popSpan = null;
+            int poolIndex = m_poolQueue[m_poolSize];
+            if (m_neighborPool[poolIndex] != null)
+            {
+                popSpan = m_neighborPool[poolIndex];
+                x = (int)(poolIndex % _solid.width);
+                z = (int)(poolIndex / _solid.width);
+                m_neighborPool[poolIndex] = m_neighborPool[poolIndex].link;
+                if (m_neighborPool[poolIndex] == null)
+                {
+                    m_poolQueue[--m_poolSize] = 0;
+                }
+                return popSpan;
+            }
+            return null;
         }
 
         #endregion
