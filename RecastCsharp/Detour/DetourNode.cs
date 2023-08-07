@@ -6,7 +6,7 @@ using System;
 using dtPolyRef = System.UInt32;
 using dtNodeIndex = System.UInt16;
 using static RecastSharp.DetourCommon;
-
+// ReSharper disable All
 namespace RecastSharp
 {
     public enum dtNodeFlags
@@ -17,13 +17,13 @@ namespace RecastSharp
     }
     public unsafe struct dtNode
     {
-        public fixed float pos[3]; ///< Position of the node.
-        public float cost; ///< Cost from previous node to current node.
-        public float total; ///< Cost up to the node.
-        public uint pidx; ///< Index to parent node.
-        public byte state; ///< extra state information. A polyRef can have multiple nodes with different extra info. see DT_MAX_STATES_PER_NODE
-        public int flags; ///< Node flags. A combination of dtNodeFlags.
-        public dtPolyRef id; ///< Polygon ref the node corresponds to.
+        public fixed float pos[3];  /// Position of the node.
+        public float cost;  /// Cost from previous node to current node.
+        public float total;  /// Cost up to the node.
+        public uint pidx;  /// Index to parent node.
+        public byte state;  /// extra state information. A polyRef can have multiple nodes with different extra info. see DT_MAX_STATES_PER_NODE
+        public int flags;  /// Node flags. A combination of dtNodeFlags.
+        public dtPolyRef id;  /// Polygon ref the node corresponds to.
     }
 
     public unsafe class dtNodePool : System.IDisposable

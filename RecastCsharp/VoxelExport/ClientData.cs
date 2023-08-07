@@ -20,7 +20,7 @@ namespace RecastSharp
             voxelSize = hf.cs;
             voxelHeight = hf.ch;
             mapX = (int)(hf.width * hf.cs);
-            mapY = (int)(hf.bmax[1] - hf.bmin[1]);
+            mapY = (int)hf.bmax[1];
             mapZ = (int)(hf.width * hf.cs);
             regionAxisNum = regionSize;
             regionWidth = (ushort)Math.Ceiling(hf.width * 1.0f / regionSize);
@@ -44,7 +44,7 @@ namespace RecastSharp
 
     public class JsonMapVoxel
     {
-        public float voxelSize;  
+        public float voxelSize;
         public float voxelHeight;
         public int mapX;
         public int mapY;
@@ -60,7 +60,7 @@ namespace RecastSharp
             voxelSize = hf.cs;
             voxelHeight = hf.ch;
             mapX = (int)(hf.width * hf.cs);
-            mapY = (int)(hf.bmax[1] - hf.bmin[1]);
+            mapY = (int)hf.bmax[1];
             mapZ = (int)(hf.width * hf.cs);
             this.regionSize = regionSize;
             regionWidth = (ushort)Math.Ceiling(hf.width * 1.0f / regionSize);

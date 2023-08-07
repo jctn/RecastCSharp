@@ -2,6 +2,7 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
+// ReSharper disable All
 
 namespace RecastSharp
 {
@@ -847,16 +848,16 @@ namespace RecastSharp
         /// @see rcAllocHeightfieldLayerSet, rcFreeHeightfieldLayerSet 
         public class rcHeightfieldLayerSet
         {
-            public rcHeightfieldLayer[]? layers = null; //< The layers in the set. [Size: #nlayers]
+            public rcHeightfieldLayer[] layers = null; //< The layers in the set. [Size: #nlayers]
             public int nlayers; //< The number of layers in the set.
         };
 
         /// Represents a simple, non-overlapping contour in field space.
         public class rcContour
         {
-            public int[]? verts; //< Simplified contour vertex and connection data. [Size: 4 * #nverts]
+            public int[] verts; //< Simplified contour vertex and connection data. [Size: 4 * #nverts]
             public int nverts; //< The number of vertices in the simplified contour. 
-            public int[]? rverts; //< Raw contour vertex and connection data. [Size: 4 * #nrverts]
+            public int[] rverts; //< Raw contour vertex and connection data. [Size: 4 * #nrverts]
             public int nrverts; //< The number of vertices in the raw contour. 
             public ushort reg; //< The region id of the contour.
             public byte area; //< The area id of the contour.
@@ -912,7 +913,7 @@ namespace RecastSharp
         /// @ingroup recast
         public class rcContourSet
         {
-            public rcContour[]? conts = null; //< An array of the contours in the set. [Size: #nconts]
+            public rcContour[] conts = null; //< An array of the contours in the set. [Size: #nconts]
             public int nconts; //< The number of contours in the set.
             public float[] bmin = new float[3]; //< The minimum bounds in world space. [(x, y, z)]
             public float[] bmax = new float[3]; //< The maximum bounds in world space. [(x, y, z)]
@@ -954,11 +955,11 @@ namespace RecastSharp
         /// @ingroup recast
         public class rcPolyMesh
         {
-            public ushort[]? verts = null; //< The mesh vertices. [Form: (x, y, z) * #nverts]
-            public ushort[]? polys = null; //< Polygon and neighbor data. [Length: #maxpolys * 2 * #nvp]
-            public ushort[]? regs = null; //< The region id assigned to each polygon. [Length: #maxpolys]
-            public ushort[]? flags = null; //< The user defined flags for each polygon. [Length: #maxpolys]
-            public byte[]? areas = null; //< The area id assigned to each polygon. [Length: #maxpolys]
+            public ushort[] verts = null; //< The mesh vertices. [Form: (x, y, z) * #nverts]
+            public ushort[] polys = null; //< Polygon and neighbor data. [Length: #maxpolys * 2 * #nvp]
+            public ushort[] regs = null; //< The region id assigned to each polygon. [Length: #maxpolys]
+            public ushort[] flags = null; //< The user defined flags for each polygon. [Length: #maxpolys]
+            public byte[] areas = null; //< The area id assigned to each polygon. [Length: #maxpolys]
             public int nverts; //< The number of vertices.
             public int npolys; //< The number of polygons.
             public int maxpolys; //< The number of allocated polygons.
@@ -1076,9 +1077,9 @@ namespace RecastSharp
         /// @ingroup recast
         public class rcPolyMeshDetail
         {
-            public uint[]? meshes = null; //< The sub-mesh data. [Size: 4*#nmeshes] 
-            public float[]? verts = null; //< The mesh vertices. [Size: 3*#nverts] 
-            public byte[]? tris = null; //< The mesh triangles. [Size: 4*#ntris] 
+            public uint[] meshes = null; //< The sub-mesh data. [Size: 4*#nmeshes] 
+            public float[] verts = null; //< The mesh vertices. [Size: 3*#nverts] 
+            public byte[] tris = null; //< The mesh triangles. [Size: 4*#ntris] 
             public int nmeshes; //< The number of sub-meshes defined by #meshes.
             public int nverts; //< The number of vertices in #verts.
             public int ntris; //< The number of triangles in #tris.

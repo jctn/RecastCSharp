@@ -11,7 +11,7 @@ namespace RecastSharp
 {
     public class MapLoader : MonoBehaviour
     {
-        private const string MapResourcePath = "Packages/com.nemo.art.scene-repo/Res/Scene/maps";
+        private const string MapResourcePath = "Packages/com.nemo.art.scene-repo/Res";
         private VoxelBuildTool _buildTool;
 
         [LabelText("地图ID"), OnValueChanged("OnMapIDChange")]
@@ -31,7 +31,7 @@ namespace RecastSharp
 
         private void OnMapIDChange()
         {
-            mapFullPath = $"{MapResourcePath}/{mapID}/FinalScene/{mapID}.unity";
+            mapFullPath = $"{MapResourcePath}/maps/{mapID}/final_scene/{mapID}.unity";
             if (_buildTool != null)
             {
                 _buildTool.mapID = mapID;

@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 
+// ReSharper disable All
 namespace RecastSharp
 {
     public static partial class Recast
@@ -120,7 +121,9 @@ namespace RecastSharp
                                 minNeighborHeight = Math.Min(minNeighborHeight, neighborBot - bot);
 
                             // Rest of the spans.
-                            for (neighborSpan = solid.spans[dx + dy * xSize]; neighborSpan != null; neighborSpan = neighborSpan.next)
+                            for (neighborSpan = solid.spans[dx + dy * xSize];
+                                 neighborSpan != null;
+                                 neighborSpan = neighborSpan.next)
                             {
                                 neighborBot = neighborSpan.smax;
                                 neighborTop = neighborSpan.next?.smin ?? RC_SPAN_MAX_HEIGHT;
@@ -132,8 +135,10 @@ namespace RecastSharp
                                     // Find min/max accessible neighbour height. 
                                     if (Math.Abs(neighborBot - bot) <= walkableClimb)
                                     {
-                                        if (neighborBot < accessibleNeighborMinHeight) accessibleNeighborMinHeight = neighborBot;
-                                        if (neighborBot > accessibleNeighborMaxHeight) accessibleNeighborMaxHeight = neighborBot;
+                                        if (neighborBot < accessibleNeighborMinHeight)
+                                            accessibleNeighborMinHeight = neighborBot;
+                                        if (neighborBot > accessibleNeighborMaxHeight)
+                                            accessibleNeighborMaxHeight = neighborBot;
                                     }
                                 }
                             }

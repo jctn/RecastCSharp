@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+// ReSharper disable All
 
 namespace RecastSharp
 {
@@ -588,16 +589,16 @@ namespace RecastSharp
         {
             // Sort holes from left to right.
             for (int i = 0; i < region.nholes; i++)
-                findLeftMostVertex(region.holes![i].contour!, ref region.holes[i].minx, ref region.holes[i].minz, ref region.holes[i].leftmost);
+                findLeftMostVertex(region.holes[i].contour, ref region.holes[i].minx, ref region.holes[i].minz, ref region.holes[i].leftmost);
 
-            var list = region.holes!.ToList();
-            list.RemoveAll(p => p.contour == null);
+            var list = region.holes.ToList();
+            list.RemoveAll(p => p?.contour == null);
             list.Sort(new ContourHoldCompare<rcContourHole>());
             region.holes = list.ToArray();
 
-            int maxVerts = region.outline!.nverts;
+            int maxVerts = region.outline.nverts;
             for (int i = 0; i < region.nholes; i++)
-                maxVerts += region.holes[i].contour!.nverts;
+                maxVerts += region.holes[i].contour.nverts;
 
             rcPotentialDiagonal[] diags = new rcPotentialDiagonal[maxVerts];
 
@@ -606,8 +607,8 @@ namespace RecastSharp
             // Merge holes into the outline one by one.
             for (int i = 0; i < region.nholes; i++)
             {
-                rcContour hole = region.holes[i].contour!;
-
+                rcContour hole = region.holes[i].contour;
+            
                 int index = -1;
                 int bestVertex = region.holes[i].leftmost;
                 for (int iter = 0; iter < hole.nverts; iter++)
@@ -991,18 +992,21 @@ namespace RecastSharp
         // Finds the lowest leftmost vertex of a contour.
         static void findLeftMostVertex(rcContour contour, ref int minx, ref int minz, ref int leftmost)
         {
-            minx = contour.verts![0];
-            minz = contour.verts[2];
-            leftmost = 0;
-            for (int i = 1; i < contour.nverts; i++)
+            if (contour != null && contour.verts != null)
             {
-                int x = contour.verts[i * 4 + 0];
-                int z = contour.verts[i * 4 + 2];
-                if (x < minx || (x == minx && z < minz))
+                minx = contour.verts[0];
+                minz = contour.verts[2];
+                leftmost = 0;
+                for (int i = 1; i < contour.nverts; i++)
                 {
-                    minx = x;
-                    minz = z;
-                    leftmost = i;
+                    int x = contour.verts[i * 4 + 0];
+                    int z = contour.verts[i * 4 + 2];
+                    if (x < minx || (x == minx && z < minz))
+                    {
+                        minx = x;
+                        minz = z;
+                        leftmost = i;
+                    }
                 }
             }
         }
@@ -1069,7 +1073,7 @@ namespace RecastSharp
 
         class rcContourHole
         {
-            public rcContour? contour;
+            public rcContour contour;
             public int minx;
             public int minz;
             public int leftmost;
@@ -1077,8 +1081,8 @@ namespace RecastSharp
 
         class rcContourRegion
         {
-            public rcContour? outline;
-            public rcContourHole[]? holes;
+            public rcContour outline;
+            public rcContourHole[] holes;
             public int nholes;
         }
 

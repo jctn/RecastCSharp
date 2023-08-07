@@ -1,7 +1,7 @@
 using System;
 using System.Diagnostics;
-using System.IO;
 
+// ReSharper disable All
 namespace RecastSharp
 {
     public static partial class Recast
@@ -19,7 +19,7 @@ namespace RecastSharp
             // http://www.terathon.com/code/edges.php
 
             int maxEdgeCount = npolys * vertsPerPoly;
-            ushort[]? firstEdge = new ushort[nverts + maxEdgeCount];
+            ushort[] firstEdge = new ushort[nverts + maxEdgeCount];
 
             //ushort* nextEdge = firstEdge + nverts;
             int nextEdgeIndex = nverts;
@@ -46,7 +46,9 @@ namespace RecastSharp
                 {
                     if (polys[tIndex + j] == RC_MESH_NULL_IDX) break;
                     ushort v0 = polys[tIndex + j];
-                    ushort v1 = (j + 1 >= vertsPerPoly || polys[tIndex + j + 1] == RC_MESH_NULL_IDX) ? polys[tIndex + 0] : polys[tIndex + j + 1];
+                    ushort v1 = (j + 1 >= vertsPerPoly || polys[tIndex + j + 1] == RC_MESH_NULL_IDX)
+                        ? polys[tIndex + 0]
+                        : polys[tIndex + j + 1];
                     if (v0 < v1)
                     {
                         rcEdge edge = edges[edgeCount];
@@ -73,7 +75,9 @@ namespace RecastSharp
                 {
                     if (polys[tIndex + j] == RC_MESH_NULL_IDX) break;
                     ushort v0 = polys[tIndex + j];
-                    ushort v1 = (j + 1 >= vertsPerPoly || polys[tIndex + j + 1] == RC_MESH_NULL_IDX) ? polys[tIndex + 0] : polys[tIndex + j + 1];
+                    ushort v1 = (j + 1 >= vertsPerPoly || polys[tIndex + j + 1] == RC_MESH_NULL_IDX)
+                        ? polys[tIndex + 0]
+                        : polys[tIndex + j + 1];
                     if (v0 > v1)
                     {
                         for (ushort e = firstEdge[v1]; e != RC_MESH_NULL_IDX; e = firstEdge[nextEdgeIndex + e])
@@ -81,8 +85,8 @@ namespace RecastSharp
                             rcEdge edge = edges[e];
                             if (e == 37)
                             {
-
                             }
+
                             if (edge.vert[1] == v0 && edge.poly[0] == edge.poly[1])
                             {
                                 edge.poly[1] = (ushort)i;
@@ -123,7 +127,8 @@ namespace RecastSharp
             return (int)(n & (VERTEX_BUCKET_COUNT - 1));
         }
 
-        public static ushort addVertex(ushort x, ushort y, ushort z, ushort[] verts, int[] firstVert, int[] nextVert, ref int nv)
+        public static ushort addVertex(ushort x, ushort y, ushort z, ushort[] verts, int[] firstVert, int[] nextVert,
+            ref int nv)
         {
             int bucket = computeVertexHash(x, 0, z);
             int i = firstVert[bucket];
@@ -136,6 +141,7 @@ namespace RecastSharp
                 {
                     return (ushort)i;
                 }
+
                 i = nextVert[i]; // next
             }
 
@@ -157,6 +163,7 @@ namespace RecastSharp
         {
             return i - 1 >= 0 ? i - 1 : n - 1;
         }
+
         public static int next(int i, int n)
         {
             return i + 1 < n ? i + 1 : 0;
@@ -166,9 +173,11 @@ namespace RecastSharp
         {
             return (b[0] - a[0]) * (c[2] - a[2]) - (c[0] - a[0]) * (b[2] - a[2]);
         }
+
         public static int area2(int[] a, int aStart, int[] b, int bStart, int[] c, int cStart)
         {
-            return (b[bStart + 0] - a[aStart + 0]) * (c[cStart + 2] - a[aStart + 2]) - (c[cStart + 0] - a[aStart + 0]) * (b[bStart + 2] - a[aStart + 2]);
+            return (b[bStart + 0] - a[aStart + 0]) * (c[cStart + 2] - a[aStart + 2]) -
+                   (c[cStart + 0] - a[aStart + 0]) * (b[bStart + 2] - a[aStart + 2]);
         }
 
         //	Exclusive or: true iff exactly one argument is true.
@@ -186,6 +195,7 @@ namespace RecastSharp
         {
             return area2(a, b, c) < 0;
         }
+
         public static bool left(int[] a, int aStart, int[] b, int bStart, int[] c, int cStart)
         {
             return area2(a, aStart, b, bStart, c, cStart) < 0;
@@ -195,6 +205,7 @@ namespace RecastSharp
         {
             return area2(a, b, c) <= 0;
         }
+
         public static bool leftOn(int[] a, int aStart, int[] b, int bStart, int[] c, int cStart)
         {
             return area2(a, aStart, b, bStart, c, cStart) <= 0;
@@ -204,6 +215,7 @@ namespace RecastSharp
         {
             return area2(a, b, c) == 0;
         }
+
         public static bool collinear(int[] a, int aStart, int[] b, int bStart, int[] c, int cStart)
         {
             return area2(a, aStart, b, bStart, c, cStart) == 0;
@@ -221,14 +233,17 @@ namespace RecastSharp
 
             return xorb(left(a, b, c), left(a, b, d)) && xorb(left(c, d, a), left(c, d, b));
         }
-        public static bool intersectProp(int[] a, int aStart, int[] b, int bStart, int[] c, int cStart, int[] d, int dStart)
+
+        public static bool intersectProp(int[] a, int aStart, int[] b, int bStart, int[] c, int cStart, int[] d,
+            int dStart)
         {
             // Eliminate improper cases.
             if (collinear(a, aStart, b, bStart, c, cStart) || collinear(a, aStart, b, bStart, d, dStart) ||
                 collinear(c, cStart, d, dStart, a, aStart) || collinear(c, cStart, d, dStart, b, bStart))
                 return false;
 
-            return xorb(left(a, aStart, b, bStart, c, cStart), left(a, aStart, b, bStart, d, dStart)) && xorb(left(c, cStart, d, dStart, a, aStart), left(c, cStart, d, dStart, b, bStart));
+            return xorb(left(a, aStart, b, bStart, c, cStart), left(a, aStart, b, bStart, d, dStart)) &&
+                   xorb(left(c, cStart, d, dStart, a, aStart), left(c, cStart, d, dStart, b, bStart));
         }
 
         // Returns T iff (a,b,c) are collinear and point c lies 
@@ -243,15 +258,18 @@ namespace RecastSharp
             else
                 return ((a[2] <= c[2]) && (c[2] <= b[2])) || ((a[2] >= c[2]) && (c[2] >= b[2]));
         }
+
         public static bool between(int[] a, int aStart, int[] b, int bStart, int[] c, int cStart)
         {
             if (!collinear(a, aStart, b, bStart, c, cStart))
                 return false;
             // If ab not vertical, check betweenness on x; else on y.
             if (a[aStart + 0] != b[bStart + 0])
-                return ((a[aStart + 0] <= c[cStart + 0]) && (c[cStart + 0] <= b[bStart + 0])) || ((a[aStart + 0] >= c[cStart + 0]) && (c[cStart + 0] >= b[bStart + 0]));
+                return ((a[aStart + 0] <= c[cStart + 0]) && (c[cStart + 0] <= b[bStart + 0])) ||
+                       ((a[aStart + 0] >= c[cStart + 0]) && (c[cStart + 0] >= b[bStart + 0]));
             else
-                return ((a[aStart + 2] <= c[cStart + 2]) && (c[cStart + 2] <= b[bStart + 2])) || ((a[aStart + 2] >= c[cStart + 2]) && (c[cStart + 2] >= b[bStart + 2]));
+                return ((a[aStart + 2] <= c[cStart + 2]) && (c[cStart + 2] <= b[bStart + 2])) ||
+                       ((a[aStart + 2] >= c[cStart + 2]) && (c[cStart + 2] >= b[bStart + 2]));
         }
 
 
@@ -261,17 +279,18 @@ namespace RecastSharp
             if (intersectProp(a, b, c, d))
                 return true;
             else if (between(a, b, c) || between(a, b, d) ||
-                    between(c, d, a) || between(c, d, b))
+                     between(c, d, a) || between(c, d, b))
                 return true;
             else
                 return false;
         }
+
         public static bool intersect(int[] a, int aStart, int[] b, int bStart, int[] c, int cStart, int[] d, int dStart)
         {
             if (intersectProp(a, aStart, b, bStart, c, cStart, d, dStart))
                 return true;
             else if (between(a, aStart, b, bStart, c, cStart) || between(a, aStart, b, bStart, d, dStart) ||
-                    between(c, cStart, d, dStart, a, aStart) || between(c, cStart, d, dStart, b, bStart))
+                     between(c, cStart, d, dStart, a, aStart) || between(c, cStart, d, dStart, b, bStart))
                 return true;
             else
                 return false;
@@ -281,6 +300,7 @@ namespace RecastSharp
         {
             return a[0] == b[0] && a[2] == b[2];
         }
+
         public static bool vequal(int[] a, int aStart, int[] b, int bStart)
         {
             return a[aStart + 0] == b[bStart + 0] && a[aStart + 2] == b[bStart + 2];
@@ -306,13 +326,15 @@ namespace RecastSharp
                     int p0Start = (indices[k] & 0x0fffffff) * 4;
                     int p1Start = (indices[k1] & 0x0fffffff) * 4;
 
-                    if (vequal(verts, d0Start, verts, p0Start) || vequal(verts, d1Start, verts, p0Start) || vequal(verts, d0Start, verts, p1Start) || vequal(verts, d1Start, verts, p1Start))
+                    if (vequal(verts, d0Start, verts, p0Start) || vequal(verts, d1Start, verts, p0Start) ||
+                        vequal(verts, d0Start, verts, p1Start) || vequal(verts, d1Start, verts, p1Start))
                         continue;
 
                     if (intersect(verts, d0Start, verts, d1Start, verts, p0Start, verts, p1Start))
                         return false;
                 }
             }
+
             return true;
         }
 
@@ -327,10 +349,12 @@ namespace RecastSharp
 
             // If P[i] is a convex vertex [ i+1 left or on (i-1,i) ].
             if (leftOn(verts, pin1Start, verts, piStart, verts, pi1Start))
-                return left(verts, piStart, verts, pjStart, verts, pin1Start) && left(verts, pjStart, verts, piStart, verts, pi1Start);
+                return left(verts, piStart, verts, pjStart, verts, pin1Start) &&
+                       left(verts, pjStart, verts, piStart, verts, pi1Start);
             // Assume (i-1,i,i+1) not collinear.
             // else P[i] is reflex.
-            return !(leftOn(verts, piStart, verts, pjStart, verts, pi1Start) && leftOn(verts, pjStart, verts, piStart, verts, pin1Start));
+            return !(leftOn(verts, piStart, verts, pjStart, verts, pi1Start) &&
+                     leftOn(verts, pjStart, verts, piStart, verts, pin1Start));
         }
 
         // Returns T iff (v_i, v_j) is a proper internal
@@ -355,13 +379,15 @@ namespace RecastSharp
                     int p0Start = (indices[k] & 0x0fffffff) * 4;
                     int p1Start = (indices[k1] & 0x0fffffff) * 4;
 
-                    if (vequal(verts, d0Start, verts, p0Start) || vequal(verts, d1Start, verts, p0Start) || vequal(verts, d0Start, verts, p1Start) || vequal(verts, d1Start, verts, p1Start))
+                    if (vequal(verts, d0Start, verts, p0Start) || vequal(verts, d1Start, verts, p0Start) ||
+                        vequal(verts, d0Start, verts, p1Start) || vequal(verts, d1Start, verts, p1Start))
                         continue;
 
                     if (intersectProp(verts, d0Start, verts, d1Start, verts, p0Start, verts, p1Start))
                         return false;
                 }
             }
+
             return true;
         }
 
@@ -374,10 +400,12 @@ namespace RecastSharp
 
             // If P[i] is a convex vertex [ i+1 left or on (i-1,i) ].
             if (leftOn(verts, pin1Start, verts, piStart, verts, pi1Start))
-                return leftOn(verts, piStart, verts, pjStart, verts, pin1Start) && leftOn(verts, pjStart, verts, piStart, verts, pi1Start);
+                return leftOn(verts, piStart, verts, pjStart, verts, pin1Start) &&
+                       leftOn(verts, pjStart, verts, piStart, verts, pi1Start);
             // Assume (i-1,i,i+1) not collinear.
             // else P[i] is reflex.
-            return !(leftOn(verts, piStart, verts, pjStart, verts, pi1Start) && leftOn(verts, pjStart, verts, piStart, verts, pin1Start));
+            return !(leftOn(verts, piStart, verts, pjStart, verts, pi1Start) &&
+                     leftOn(verts, pjStart, verts, piStart, verts, pin1Start));
         }
 
         static bool diagonalLoose(int i, int j, int n, int[] verts, int[] indices)
@@ -466,6 +494,7 @@ namespace RecastSharp
                             }
                         }
                     }
+
                     if (mini == -1)
                     {
                         // The contour is messed up. This sometimes happens
@@ -527,6 +556,7 @@ namespace RecastSharp
                     return i;
                 }
             }
+
             return nvp;
         }
 
@@ -542,7 +572,8 @@ namespace RecastSharp
                 ((int)c[cStart + 0] - (int)a[aStart + 0]) * ((int)b[bStart + 2] - (int)a[aStart + 2]) < 0;
         }
 
-        public static int getPolyMergeValue(ushort[] pa, int paStart, ushort[] pb, int pbStart, ushort[] verts, ref int ea, ref int eb, int nvp)
+        public static int getPolyMergeValue(ushort[] pa, int paStart, ushort[] pb, int pbStart, ushort[] verts,
+            ref int ea, ref int eb, int nvp)
         {
             int na = countPolyVerts(pa, paStart, nvp);
             int nb = countPolyVerts(pb, pbStart, nvp);
@@ -563,6 +594,7 @@ namespace RecastSharp
                 {
                     rcSwap(ref va0, ref va1);
                 }
+
                 for (int j = 0; j < nb; ++j)
                 {
                     ushort vb0 = pb[pbStart + j];
@@ -606,7 +638,8 @@ namespace RecastSharp
             return dx * dx + dy * dy;
         }
 
-        public static void mergePolyVerts(ushort[] pa, int paStart, ushort[] pb, int pbStart, int ea, int eb, ushort[] tmp, int tmpStart, int nvp)
+        public static void mergePolyVerts(ushort[] pa, int paStart, ushort[] pb, int pbStart, int ea, int eb,
+            ushort[] tmp, int tmpStart, int nvp)
         {
             int na = countPolyVerts(pa, paStart, nvp);
             int nb = countPolyVerts(pb, pbStart, nvp);
@@ -617,6 +650,7 @@ namespace RecastSharp
             {
                 tmp[tmpStart + i] = 0xffff;
             }
+
             int n = 0;
             // Add pa
             for (int i = 0; i < na - 1; ++i)
@@ -639,6 +673,7 @@ namespace RecastSharp
             {
                 arr[i] = arr[i - 1];
             }
+
             arr[0] = v;
         }
 
@@ -669,8 +704,10 @@ namespace RecastSharp
                         numTouchedVerts++;
                         numRemoved++;
                     }
+
                     numVerts++;
                 }
+
                 if (numRemoved != 0)
                 {
                     numRemainingEdges += numVerts - (numRemoved + 1);
@@ -726,6 +763,7 @@ namespace RecastSharp
                                 exists = true;
                             }
                         }
+
                         // Add new edge.
                         if (!exists)
                         {
@@ -749,6 +787,7 @@ namespace RecastSharp
                 if (edges[i * 3 + 2] < 2)
                     numOpenEdges++;
             }
+
             if (numOpenEdges > 2)
                 return false;
 
@@ -777,7 +816,8 @@ namespace RecastSharp
             int[] edges = new int[numRemovedVerts * nvp * 4];
             if (edges == null)
             {
-                ctx.log(rcLogCategory.RC_LOG_WARNING, "removeVertex: Out of memory 'edges' " + numRemovedVerts * nvp * 4);
+                ctx.log(rcLogCategory.RC_LOG_WARNING,
+                    "removeVertex: Out of memory 'edges' " + numRemovedVerts * nvp * 4);
                 return false;
             }
 
@@ -831,6 +871,7 @@ namespace RecastSharp
                             nedges++;
                         }
                     }
+
                     // Remove the polygon.
                     //ushort* p2 = &mesh.polys[(mesh.npolys-1)*nvp*2];
                     int p2Index = (mesh.npolys - 1) * nvp * 2;
@@ -840,6 +881,7 @@ namespace RecastSharp
                         for (int j = 0; j < nvp; ++j)
                             mesh.polys![pIndex + j] = mesh.polys[p2Index + j];
                     }
+
                     //memset(p+nvp,0xff,sizeof(ushort)*nvp);
                     for (int j = 0; j < nvp; ++j)
                         mesh.polys![pIndex + nvp + j] = 0xffff;
@@ -858,6 +900,7 @@ namespace RecastSharp
                 mesh.verts[i * 3 + 1] = mesh.verts[(i + 1) * 3 + 1];
                 mesh.verts[i * 3 + 2] = mesh.verts[(i + 1) * 3 + 2];
             }
+
             mesh.nverts--;
 
             // Adjust indices to match the removed vertex layout.
@@ -874,12 +917,14 @@ namespace RecastSharp
                     }
                 }
             }
+
             for (int i = 0; i < nedges; ++i)
             {
                 if (edges[i * 4 + 0] > rem)
                 {
                     edges[i * 4 + 0]--;
                 }
+
                 if (edges[i * 4 + 1] > rem)
                 {
                     edges[i * 4 + 1]--;
@@ -924,6 +969,7 @@ namespace RecastSharp
                         pushBack(a, harea, ref nharea);
                         add = true;
                     }
+
                     if (add)
                     {
                         // The edge segment was added, remove it.
@@ -1013,11 +1059,13 @@ namespace RecastSharp
             {
                 polys[i] = 0xffff;
             }
+
             for (int j = 0; j < ntris; ++j)
             {
                 //int* t = &tris[j*3];
                 int tIndex = j * 3;
-                if (tris[tIndex + 0] != tris[tIndex + 1] && tris[tIndex + 0] != tris[tIndex + 2] && tris[tIndex + 1] != tris[tIndex + 2])
+                if (tris[tIndex + 0] != tris[tIndex + 1] && tris[tIndex + 0] != tris[tIndex + 2] &&
+                    tris[tIndex + 1] != tris[tIndex + 2])
                 {
                     polys[npolys * nvp + 0] = (ushort)hole[tris[tIndex + 0]];
                     polys[npolys * nvp + 1] = (ushort)hole[tris[tIndex + 1]];
@@ -1025,7 +1073,8 @@ namespace RecastSharp
 
                     // If this polygon covers multiple region types then
                     // mark it as such
-                    if (hreg[tris[tIndex + 0]] != hreg[tris[tIndex + 1]] || hreg[tris[tIndex + 1]] != hreg[tris[tIndex + 2]])
+                    if (hreg[tris[tIndex + 0]] != hreg[tris[tIndex + 1]] ||
+                        hreg[tris[tIndex + 1]] != hreg[tris[tIndex + 2]])
                         pregs[npolys] = RC_MULTIPLE_REGS;
                     else
                         pregs[npolys] = (ushort)hreg[tris[tIndex + 0]];
@@ -1034,6 +1083,7 @@ namespace RecastSharp
                     npolys++;
                 }
             }
+
             if (npolys == 0)
             {
                 return true;
@@ -1042,7 +1092,7 @@ namespace RecastSharp
             // Merge polygons.
             if (nvp > 3)
             {
-                for (; ; )
+                for (;;)
                 {
                     // Find best polygons to merge.
                     int bestMergeVal = 0;
@@ -1092,6 +1142,7 @@ namespace RecastSharp
                                 polys[pbIndex + j] = polys[lastIndex + j];
                             }
                         }
+
                         pregs[bestPb] = pregs[npolys - 1];
                         pareas[bestPb] = pareas[npolys - 1];
                         npolys--;
@@ -1122,7 +1173,8 @@ namespace RecastSharp
                 mesh.npolys++;
                 if (mesh.npolys > maxTris)
                 {
-                    ctx.log(rcLogCategory.RC_LOG_ERROR, "removeVertex: Too many polygons " + mesh.npolys + " (max:" + maxTris + ")");
+                    ctx.log(rcLogCategory.RC_LOG_ERROR,
+                        "removeVertex: Too many polygons " + mesh.npolys + " (max:" + maxTris + ")");
                     return false;
                 }
             }
@@ -1211,8 +1263,8 @@ namespace RecastSharp
             {
                 if (i == 116)
                 {
-
                 }
+
                 mesh.polys[i] = 0xffff;
             }
 
@@ -1226,9 +1278,11 @@ namespace RecastSharp
             int[] firstVert = new int[VERTEX_BUCKET_COUNT];
             if (firstVert == null)
             {
-                ctx.log(rcLogCategory.RC_LOG_ERROR, "rcBuildPolyMesh: Out of memory 'firstVert' " + VERTEX_BUCKET_COUNT);
+                ctx.log(rcLogCategory.RC_LOG_ERROR,
+                    "rcBuildPolyMesh: Out of memory 'firstVert' " + VERTEX_BUCKET_COUNT);
                 return false;
             }
+
             for (int i = 0; i < VERTEX_BUCKET_COUNT; ++i)
                 firstVert[i] = -1;
 
@@ -1249,9 +1303,11 @@ namespace RecastSharp
             ushort[] polys = new ushort[(maxVertsPerCont + 1) * nvp];
             if (polys == null)
             {
-                ctx.log(rcLogCategory.RC_LOG_ERROR, "rcBuildPolyMesh: Out of memory 'polys' " + (maxVertsPerCont + 1) * nvp);
+                ctx.log(rcLogCategory.RC_LOG_ERROR,
+                    "rcBuildPolyMesh: Out of memory 'polys' " + (maxVertsPerCont + 1) * nvp);
                 return false;
             }
+
             int tmpPolyIndex = maxVertsPerCont * nvp;
             //ushort[] tmpPoly = &polys[maxVertsPerCont*nvp];
 
@@ -1290,8 +1346,9 @@ namespace RecastSharp
                 {
                     int vIndex = j * 4;
                     //const int* v = &cont.verts[j*4];
-                    indices[j] = addVertex((ushort)cont.verts![vIndex + 0], (ushort)cont.verts[vIndex + 1], (ushort)cont.verts[vIndex + 2],
-                                        mesh.verts, firstVert, nextVert, ref mesh.nverts);
+                    indices[j] = addVertex((ushort)cont.verts![vIndex + 0], (ushort)cont.verts[vIndex + 1],
+                        (ushort)cont.verts[vIndex + 2],
+                        mesh.verts, firstVert, nextVert, ref mesh.nverts);
                     if ((cont.verts[vIndex + 3] & RC_BORDER_VERTEX) != 0)
                     {
                         // This vertex should be removed.
@@ -1306,11 +1363,13 @@ namespace RecastSharp
                 {
                     polys[j] = 0xffff;
                 }
+
                 for (int j = 0; j < ntris; ++j)
                 {
                     int tIndex = j * 3;
                     //int* t = &tris[j*3];
-                    if (tris[tIndex + 0] != tris[tIndex + 1] && tris[tIndex + 0] != tris[tIndex + 2] && tris[tIndex + 1] != tris[tIndex + 2])
+                    if (tris[tIndex + 0] != tris[tIndex + 1] && tris[tIndex + 0] != tris[tIndex + 2] &&
+                        tris[tIndex + 1] != tris[tIndex + 2])
                     {
                         polys[npolys * nvp + 0] = (ushort)indices[tris[tIndex + 0]];
                         polys[npolys * nvp + 1] = (ushort)indices[tris[tIndex + 1]];
@@ -1318,6 +1377,7 @@ namespace RecastSharp
                         npolys++;
                     }
                 }
+
                 if (npolys == 0)
                 {
                     continue;
@@ -1326,7 +1386,7 @@ namespace RecastSharp
                 // Merge polygons.
                 if (nvp > 3)
                 {
-                    for (; ; )
+                    for (;;)
                     {
                         // Find best polygons to merge.
                         int bestMergeVal = 0;
@@ -1341,7 +1401,8 @@ namespace RecastSharp
                                 //ushort* pk = &polys[k*nvp];
                                 int pkIndex = k * nvp;
                                 int ea = 0, eb = 0;
-                                int v = getPolyMergeValue(polys, pjIndex, polys, pkIndex, mesh.verts, ref ea, ref eb, nvp);
+                                int v = getPolyMergeValue(polys, pjIndex, polys, pkIndex, mesh.verts, ref ea, ref eb,
+                                    nvp);
                                 if (v > bestMergeVal)
                                 {
                                     bestMergeVal = v;
@@ -1371,6 +1432,7 @@ namespace RecastSharp
                                     polys[pbIndex + j] = polys[lastPolyIndex + j];
                                 }
                             }
+
                             npolys--;
                         }
                         else
@@ -1392,12 +1454,14 @@ namespace RecastSharp
                     {
                         mesh.polys[pIndex + k] = polys[qIndex + k];
                     }
+
                     mesh.regs[mesh.npolys] = cont.reg;
                     mesh.areas[mesh.npolys] = cont.area;
                     mesh.npolys++;
                     if (mesh.npolys > maxTris)
                     {
-                        ctx.log(rcLogCategory.RC_LOG_ERROR, "rcBuildPolyMesh: Too many polygons " + mesh.npolys + " max " + maxTris);
+                        ctx.log(rcLogCategory.RC_LOG_ERROR,
+                            "rcBuildPolyMesh: Too many polygons " + mesh.npolys + " max " + maxTris);
                         return false;
                     }
                 }
@@ -1412,12 +1476,14 @@ namespace RecastSharp
                     {
                         continue;
                     }
+
                     if (!removeVertex(ctx, mesh, (ushort)i, maxTris))
                     {
                         // Failed to remove vertex
                         ctx.log(rcLogCategory.RC_LOG_ERROR, "rcBuildPolyMesh: Failed to remove edge vertex " + i);
                         return false;
                     }
+
                     // Remove vertex
                     // Note: mesh.nverts is already decremented inside removeVertex()!
                     // Fixup vertex flags
@@ -1449,11 +1515,13 @@ namespace RecastSharp
                         {
                             break;
                         }
+
                         // Skip connected edges.
                         if (mesh.polys[pIndex + nvp + j] != RC_MESH_NULL_IDX)
                         {
                             continue;
                         }
+
                         int nj = j + 1;
                         if (nj >= nvp || mesh.polys[pIndex + nj] == RC_MESH_NULL_IDX) nj = 0;
                         //ushort* va = &mesh.verts[mesh.polys[pIndex + j]*3];
@@ -1485,11 +1553,16 @@ namespace RecastSharp
 
             if (mesh.nverts > 0xffff)
             {
-                ctx.log(rcLogCategory.RC_LOG_ERROR, "rcBuildPolyMesh: The resulting mesh has too many vertices " + mesh.nverts + "(max " + 0xffff + ") Data can be corrupted.");
+                ctx.log(rcLogCategory.RC_LOG_ERROR,
+                    "rcBuildPolyMesh: The resulting mesh has too many vertices " + mesh.nverts + "(max " + 0xffff +
+                    ") Data can be corrupted.");
             }
+
             if (mesh.npolys > 0xffff)
             {
-                ctx.log(rcLogCategory.RC_LOG_ERROR, "rcBuildPolyMesh: The resulting mesh has too many polygons " + mesh.npolys + " (max " + 0xffff + "). Data can be corrupted.");
+                ctx.log(rcLogCategory.RC_LOG_ERROR,
+                    "rcBuildPolyMesh: The resulting mesh has too many polygons " + mesh.npolys + " (max " + 0xffff +
+                    "). Data can be corrupted.");
             }
 
             ctx.stopTimer(rcTimerLabel.RC_TIMER_BUILD_POLYMESH);
@@ -1537,9 +1610,11 @@ namespace RecastSharp
             mesh.polys = new ushort[maxPolys * 2 * mesh.nvp];
             if (mesh.polys == null)
             {
-                ctx.log(rcLogCategory.RC_LOG_ERROR, "rcMergePolyMeshes: Out of memory 'mesh.polys' " + maxPolys * 2 * mesh.nvp);
+                ctx.log(rcLogCategory.RC_LOG_ERROR,
+                    "rcMergePolyMeshes: Out of memory 'mesh.polys' " + maxPolys * 2 * mesh.nvp);
                 return false;
             }
+
             for (int i = 0; i < maxPolys * 2 * mesh.nvp; ++i)
             {
                 mesh.polys[i] = 0xffff;
@@ -1576,9 +1651,11 @@ namespace RecastSharp
             int[] firstVert = new int[VERTEX_BUCKET_COUNT];
             if (firstVert == null)
             {
-                ctx.log(rcLogCategory.RC_LOG_ERROR, "rcMergePolyMeshes: Out of memory 'firstVert' " + VERTEX_BUCKET_COUNT);
+                ctx.log(rcLogCategory.RC_LOG_ERROR,
+                    "rcMergePolyMeshes: Out of memory 'firstVert' " + VERTEX_BUCKET_COUNT);
                 return false;
             }
+
             for (int i = 0; i < VERTEX_BUCKET_COUNT; ++i)
             {
                 firstVert[i] = -1;
@@ -1608,8 +1685,9 @@ namespace RecastSharp
                 {
                     //ushort* v = &pmesh.verts[j*3];
                     int vIndex = j * 3;
-                    vremap[j] = addVertex((ushort)(pmesh.verts![vIndex + 0] + ox), pmesh.verts[vIndex + 1], (ushort)(pmesh.verts[vIndex + 2] + oz),
-                                        mesh.verts, firstVert, nextVert, ref mesh.nverts);
+                    vremap[j] = addVertex((ushort)(pmesh.verts![vIndex + 0] + ox), pmesh.verts[vIndex + 1],
+                        (ushort)(pmesh.verts[vIndex + 2] + oz),
+                        mesh.verts, firstVert, nextVert, ref mesh.nverts);
                 }
 
                 for (int j = 0; j < pmesh.npolys; ++j)
@@ -1629,6 +1707,7 @@ namespace RecastSharp
                         {
                             break;
                         }
+
                         mesh.polys[tgtIndex + k] = vremap[pmesh.polys[srcIndex + k]];
                     }
 
@@ -1674,11 +1753,16 @@ namespace RecastSharp
 
             if (mesh.nverts > 0xffff)
             {
-                ctx.log(rcLogCategory.RC_LOG_ERROR, "rcMergePolyMeshes: The resulting mesh has too many vertices " + mesh.nverts + " (max " + 0xffff + "). Data can be corrupted.");
+                ctx.log(rcLogCategory.RC_LOG_ERROR,
+                    "rcMergePolyMeshes: The resulting mesh has too many vertices " + mesh.nverts + " (max " + 0xffff +
+                    "). Data can be corrupted.");
             }
+
             if (mesh.npolys > 0xffff)
             {
-                ctx.log(rcLogCategory.RC_LOG_ERROR, "rcMergePolyMeshes: The resulting mesh has too many polygons " + mesh.npolys + " (max " + 0xffff + "). Data can be corrupted.");
+                ctx.log(rcLogCategory.RC_LOG_ERROR,
+                    "rcMergePolyMeshes: The resulting mesh has too many polygons " + mesh.npolys + " (max " + 0xffff +
+                    "). Data can be corrupted.");
             }
 
             ctx.stopTimer(rcTimerLabel.RC_TIMER_MERGE_POLYMESH);
@@ -1712,9 +1796,11 @@ namespace RecastSharp
             dst.verts = new ushort[src.nverts * 3];
             if (dst.verts == null)
             {
-                ctx.log(rcLogCategory.RC_LOG_ERROR, "rcCopyPolyMesh: Out of memory 'dst.verts' (" + src.nverts * 3 + ").");
+                ctx.log(rcLogCategory.RC_LOG_ERROR,
+                    "rcCopyPolyMesh: Out of memory 'dst.verts' (" + src.nverts * 3 + ").");
                 return false;
             }
+
             //memcpy(dst.verts, src.verts, sizeof(ushort)*src.nverts*3);
             for (int i = 0; i < src.nverts * 3; ++i)
             {
@@ -1725,9 +1811,11 @@ namespace RecastSharp
             dst.polys = new ushort[src.npolys * 2 * src.nvp];
             if (dst.polys == null)
             {
-                ctx.log(rcLogCategory.RC_LOG_ERROR, "rcCopyPolyMesh: Out of memory 'dst.polys' (" + src.npolys * 2 * src.nvp + ").");
+                ctx.log(rcLogCategory.RC_LOG_ERROR,
+                    "rcCopyPolyMesh: Out of memory 'dst.polys' (" + src.npolys * 2 * src.nvp + ").");
                 return false;
             }
+
             //memcpy(dst.polys, src.polys, sizeof(ushort)*src.npolys*2*src.nvp);
             for (int i = 0; i < src.npolys * 2 * src.nvp; ++i)
             {
@@ -1741,6 +1829,7 @@ namespace RecastSharp
                 ctx.log(rcLogCategory.RC_LOG_ERROR, "rcCopyPolyMesh: Out of memory 'dst.regs' (" + src.npolys + ").");
                 return false;
             }
+
             //memcpy(dst.regs, src.regs, sizeof(ushort)*src.npolys);
             for (int i = 0; i < src.npolys; ++i)
             {
@@ -1754,6 +1843,7 @@ namespace RecastSharp
                 ctx.log(rcLogCategory.RC_LOG_ERROR, "rcCopyPolyMesh: Out of memory 'dst.areas' (" + src.npolys + ").");
                 return false;
             }
+
             //memcpy(dst.areas, src.areas, sizeof(byte)*src.npolys);
             for (int i = 0; i < src.npolys; ++i)
             {
@@ -1767,6 +1857,7 @@ namespace RecastSharp
                 ctx.log(rcLogCategory.RC_LOG_ERROR, "rcCopyPolyMesh: Out of memory 'dst.flags' (" + src.npolys + ").");
                 return false;
             }
+
             //memcpy(dst.flags, src.flags, sizeof(byte)*src.npolys);
             for (int i = 0; i < src.npolys; ++i)
             {

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 
+// ReSharper disable All
 namespace RecastSharp
 {
     public static partial class Recast
@@ -38,11 +39,13 @@ namespace RecastSharp
                                     nc++;
                             }
                         }
+
                         if (nc != 4)
                             src[i] = 0;
                     }
                 }
             }
+
             // Pass 1
             for (int y = 0; y < h; ++y)
             {
@@ -77,6 +80,7 @@ namespace RecastSharp
                                 }
                             }
                         }
+
                         if (rcGetCon(s, 3) != RC_NOT_CONNECTED)
                         {
                             // (0,-1)
@@ -104,6 +108,7 @@ namespace RecastSharp
                     }
                 }
             }
+
             // Pass 2
             for (int y = h - 1; y >= 0; --y)
             {
@@ -138,6 +143,7 @@ namespace RecastSharp
                                 }
                             }
                         }
+
                         if (rcGetCon(s, 1) != RC_NOT_CONNECTED)
                         {
                             // (0,1)
@@ -165,16 +171,16 @@ namespace RecastSharp
                     }
                 }
             }
+
             maxDist = 0;
             for (int i = 0; i < chf.spanCount; ++i)
             {
                 maxDist = Math.Max(src[i], maxDist);
             }
-
         }
 
         static ushort[] boxBlur(rcCompactHeightfield chf, int thr,
-                                    ushort[] src, ushort[] dst)
+            ushort[] src, ushort[] dst)
         {
             int w = chf.width;
             int h = chf.height;
@@ -225,19 +231,21 @@ namespace RecastSharp
                                 d += cd * 2;
                             }
                         }
+
                         dst[i] = (ushort)((d + 5) / 9);
                     }
                 }
             }
+
             return dst;
         }
 
 
         static bool floodRegion(int x, int y, int i,
-                                ushort level, ushort r,
-                                rcCompactHeightfield chf,
-                                ushort[] srcReg, ushort[] srcDist,
-                                List<int> stack)
+            ushort level, ushort r,
+            rcCompactHeightfield chf,
+            ushort[] srcReg, ushort[] srcDist,
+            List<int> stack)
         {
             int w = chf.width;
 
@@ -303,11 +311,13 @@ namespace RecastSharp
                         }
                     }
                 }
+
                 if (ar != 0)
                 {
                     srcReg[ci] = 0;
                     continue;
                 }
+
                 count++;
 
                 // Expand neighbours.
@@ -336,11 +346,11 @@ namespace RecastSharp
         }
 
         static ushort[] expandRegions(int maxIter, ushort level,
-                                            rcCompactHeightfield chf,
-                                            ushort[] srcReg, ushort[] srcDist,
-                                            ushort[] dstReg, ushort[] dstDist,
-                                            List<int> stack,
-                                            bool fillStack)
+            rcCompactHeightfield chf,
+            ushort[] srcReg, ushort[] srcDist,
+            ushort[] dstReg, ushort[] dstDist,
+            List<int> stack,
+            bool fillStack)
         {
             int w = chf.width;
             int h = chf.height;
@@ -387,11 +397,13 @@ namespace RecastSharp
                 {
                     dstReg[i] = srcReg[i];
                 }
+
                 //memcpy(dstDist, srcDist, sizeof(ushort)*chf.spanCount);
                 for (int i = 0; i < chf.spanCount; ++i)
                 {
                     dstDist[i] = srcDist[i];
                 }
+
                 for (int j = 0; j < stack.Count; j += 3)
                 {
                     int x = stack[j + 0];
@@ -424,6 +436,7 @@ namespace RecastSharp
                             }
                         }
                     }
+
                     if (r != 0)
                     {
                         stack[j + 2] = -1; // mark as used
@@ -455,12 +468,11 @@ namespace RecastSharp
         }
 
 
-
         static void sortCellsByLevel(ushort startLevel,
-                                    rcCompactHeightfield chf,
-                                    ushort[] srcReg,
-                                    uint nbStacks, List<int>[] stacks,
-                                    ushort loglevelsPerStack) // the levels per stack (2 in our case) as a bit shift
+            rcCompactHeightfield chf,
+            ushort[] srcReg,
+            uint nbStacks, List<int>[] stacks,
+            ushort loglevelsPerStack) // the levels per stack (2 in our case) as a bit shift
         {
             int w = chf.width;
             int h = chf.height;
@@ -497,7 +509,7 @@ namespace RecastSharp
 
 
         static void appendStacks(List<int> srcStack, List<int> dstStack,
-                                ushort[] srcReg)
+            ushort[] srcReg)
         {
             for (int j = 0; j < srcStack.Count; j += 3)
             {
@@ -517,9 +529,9 @@ namespace RecastSharp
                 id = i;
             }
 
-            public int spanCount = 0;           // Number of spans belonging to this region
-            public ushort id = 0;               // ID of the region
-            public byte areaType = 0;           // Area type.
+            public int spanCount = 0; // Number of spans belonging to this region
+            public ushort id = 0; // ID of the region
+            public byte areaType = 0; // Area type.
             public bool remap = false;
             public bool visited = false;
             public List<int> connections = new List<int>();
@@ -539,6 +551,7 @@ namespace RecastSharp
                     {
                         reg.connections[j] = reg.connections[j + 1];
                     }
+
                     rccsPop(reg.connections);
                 }
                 else
@@ -557,11 +570,13 @@ namespace RecastSharp
                     neiChanged = true;
                 }
             }
+
             for (int i = 0; i < reg.floors.Count; ++i)
             {
                 if (reg.floors[i] == oldId)
                     reg.floors[i] = newId;
             }
+
             if (neiChanged)
                 removeAdjacentNeighbours(reg);
         }
@@ -576,6 +591,7 @@ namespace RecastSharp
                 if (rega.connections[i] == regb.id)
                     n++;
             }
+
             if (n > 1)
                 return false;
             for (int i = 0; i < rega.floors.Count; ++i)
@@ -583,6 +599,7 @@ namespace RecastSharp
                 if (rega.floors[i] == regb.id)
                     return false;
             }
+
             return true;
         }
 
@@ -616,6 +633,7 @@ namespace RecastSharp
                     break;
                 }
             }
+
             if (insa == -1)
                 return false;
 
@@ -629,6 +647,7 @@ namespace RecastSharp
                     break;
                 }
             }
+
             if (insb == -1)
                 return false;
 
@@ -660,11 +679,12 @@ namespace RecastSharp
                 if (reg.connections[i] == 0)
                     return true;
             }
+
             return false;
         }
 
         static bool isSolidEdge(rcCompactHeightfield chf, ushort[] srcReg,
-                                int x, int y, int i, int dir)
+            int x, int y, int i, int dir)
         {
             rcCompactSpan s = chf.spans![i];
             ushort r = 0;
@@ -675,15 +695,16 @@ namespace RecastSharp
                 int ai = (int)chf.cells![ax + ay * chf.width].index + rcGetCon(s, dir);
                 r = srcReg[ai];
             }
+
             if (r == srcReg[i])
                 return false;
             return true;
         }
 
         static void walkContour(int x, int y, int i, int dir,
-                                rcCompactHeightfield chf,
-                                ushort[] srcReg,
-                                List<int> cont)
+            rcCompactHeightfield chf,
+            ushort[] srcReg,
+            List<int> cont)
         {
             int startDir = dir;
             int starti = i;
@@ -697,6 +718,7 @@ namespace RecastSharp
                 int ai = (int)chf.cells![ax + ay * chf.width].index + rcGetCon(ss, dir);
                 curReg = srcReg[ai];
             }
+
             cont.Add(curReg);
 
             int iter = 0;
@@ -715,13 +737,14 @@ namespace RecastSharp
                         int ai = (int)chf.cells![ax + ay * chf.width].index + rcGetCon(s, dir);
                         r = srcReg[ai];
                     }
+
                     if (r != curReg)
                     {
                         curReg = r;
                         cont.Add(curReg);
                     }
 
-                    dir = (dir + 1) & 0x3;  // Rotate CW
+                    dir = (dir + 1) & 0x3; // Rotate CW
                 }
                 else
                 {
@@ -733,15 +756,17 @@ namespace RecastSharp
                         rcCompactCell nc = chf.cells![nx + ny * chf.width];
                         ni = (int)nc.index + rcGetCon(s, dir);
                     }
+
                     if (ni == -1)
                     {
                         // Should not happen.
                         return;
                     }
+
                     x = nx;
                     y = ny;
                     i = ni;
-                    dir = (dir + 3) & 0x3;  // Rotate CCW
+                    dir = (dir + 3) & 0x3; // Rotate CCW
                 }
 
                 if (starti == i && startDir == dir)
@@ -769,9 +794,9 @@ namespace RecastSharp
         }
 
         static bool filterSmallRegions(rcContext ctx, int minRegionArea, int mergeRegionSize,
-                                    ref ushort maxRegionId,
-                                    rcCompactHeightfield chf,
-                                    ushort[] srcReg)
+            ref ushort maxRegionId,
+            rcCompactHeightfield chf,
+            ushort[] srcReg)
         {
             int w = chf.width;
             int h = chf.height;
@@ -844,8 +869,8 @@ namespace RecastSharp
             }
 
             // Remove too small regions.
-            List<int> stack = new List<int>();//(32);
-            List<int> trace = new List<int>();//(32);
+            List<int> stack = new List<int>(); //(32);
+            List<int> trace = new List<int>(); //(32);
             stack.Capacity = 32;
             trace.Capacity = 32;
             for (int i = 0; i < nreg; ++i)
@@ -885,6 +910,7 @@ namespace RecastSharp
                             connectsToBorder = true;
                             continue;
                         }
+
                         rcRegion neireg = regions[creg.connections[j]];
                         if (neireg.visited)
                             continue;
@@ -948,6 +974,7 @@ namespace RecastSharp
                             mergeId = mreg.id;
                         }
                     }
+
                     // Found new id.
                     if (mergeId != reg.id)
                     {
@@ -960,8 +987,6 @@ namespace RecastSharp
                             // Fixup regions pointing to current region.
                             for (int j = 0; j < nreg; ++j)
                             {
-
-
                                 if (regions[j].id == 0 || (regions[j].id & RC_BORDER_REG) != 0)
                                     continue;
                                 // If another region was already merged into current region
@@ -972,22 +997,21 @@ namespace RecastSharp
                                 // current regions is neighbour.
                                 replaceNeighbour(regions[j], oldId, mergeId);
                             }
+
                             mergeCount++;
                         }
-
                     }
                 }
-            }
-            while (mergeCount > 0);
+            } while (mergeCount > 0);
 
             // Compress region Ids.
             for (int i = 0; i < nreg; ++i)
             {
                 regions[i].remap = false;
                 if (regions[i].id == 0)
-                    continue;       // Skip nil regions.
+                    continue; // Skip nil regions.
                 if ((regions[i].id & RC_BORDER_REG) != 0)
-                    continue;    // Skip external regions.
+                    continue; // Skip external regions.
                 regions[i].remap = true;
             }
 
@@ -1007,6 +1031,7 @@ namespace RecastSharp
                     }
                 }
             }
+
             maxRegionId = regIdGen;
 
             // Remap regions.
@@ -1040,14 +1065,16 @@ namespace RecastSharp
             ushort[] src = new ushort[chf.spanCount];
             if (src == null)
             {
-                ctx.log(rcLogCategory.RC_LOG_ERROR, "rcBuildDistanceField: Out of memory 'src' (" + chf.spanCount + ").");
+                ctx.log(rcLogCategory.RC_LOG_ERROR,
+                    "rcBuildDistanceField: Out of memory 'src' (" + chf.spanCount + ").");
                 return false;
             }
 
-            ushort[]? dst = new ushort[chf.spanCount];
+            ushort[] dst = new ushort[chf.spanCount];
             if (dst == null)
             {
-                ctx.log(rcLogCategory.RC_LOG_ERROR, "rcBuildDistanceField: Out of memory 'dst' (" + chf.spanCount + ").");
+                ctx.log(rcLogCategory.RC_LOG_ERROR,
+                    "rcBuildDistanceField: Out of memory 'dst' (" + chf.spanCount + ").");
                 return false;
             }
 
@@ -1081,7 +1108,7 @@ namespace RecastSharp
         }
 
         public static void paintRectRegion(int minx, int maxx, int miny, int maxy, ushort regId,
-                                    rcCompactHeightfield chf, ushort[] srcReg)
+            rcCompactHeightfield chf, ushort[] srcReg)
         {
             int w = chf.width;
             for (int y = miny; y < maxy; ++y)
@@ -1103,10 +1130,10 @@ namespace RecastSharp
 
         public class rcSweepSpan
         {
-            public ushort rid = 0;  // row id
-            public ushort id = 0;   // region id
-            public ushort ns = 0;   // number samples
-            public ushort nei = 0;	// neighbour id
+            public ushort rid = 0; // row id
+            public ushort id = 0; // region id
+            public ushort ns = 0; // number samples
+            public ushort nei = 0; // neighbour id
         };
 
         /// @par
@@ -1129,7 +1156,7 @@ namespace RecastSharp
         /// 
         /// @see rcCompactHeightfield, rcCompactSpan, rcBuildDistanceField, rcBuildRegionsMonotone, rcConfig
         public static bool rcBuildRegionsMonotone(rcContext ctx, rcCompactHeightfield chf,
-                                    int borderSize, int minRegionArea, int mergeRegionArea)
+            int borderSize, int minRegionArea, int mergeRegionArea)
         {
             Debug.Assert(ctx != null, "rcContext is null");
 
@@ -1142,7 +1169,8 @@ namespace RecastSharp
             ushort[] srcReg = new ushort[chf.spanCount];
             if (srcReg == null)
             {
-                ctx.log(rcLogCategory.RC_LOG_ERROR, "rcBuildRegionsMonotone: Out of memory 'src' (" + chf.spanCount + ").");
+                ctx.log(rcLogCategory.RC_LOG_ERROR,
+                    "rcBuildRegionsMonotone: Out of memory 'src' (" + chf.spanCount + ").");
                 return false;
             }
 
@@ -1151,7 +1179,8 @@ namespace RecastSharp
             rccsArrayItemsCreate(sweeps);
             if (sweeps == null)
             {
-                ctx.log(rcLogCategory.RC_LOG_ERROR, "rcBuildRegionsMonotone: Out of memory 'sweeps' (" + nsweeps + ").");
+                ctx.log(rcLogCategory.RC_LOG_ERROR,
+                    "rcBuildRegionsMonotone: Out of memory 'sweeps' (" + nsweeps + ").");
                 return false;
             }
 
@@ -1162,15 +1191,19 @@ namespace RecastSharp
                 int bw = Math.Min(w, borderSize);
                 int bh = Math.Min(h, borderSize);
                 // Paint regions
-                paintRectRegion(0, bw, 0, h, (ushort)(id | RC_BORDER_REG), chf, srcReg); id++;
-                paintRectRegion(w - bw, w, 0, h, (ushort)(id | RC_BORDER_REG), chf, srcReg); id++;
-                paintRectRegion(0, w, 0, bh, (ushort)(id | RC_BORDER_REG), chf, srcReg); id++;
-                paintRectRegion(0, w, h - bh, h, (ushort)(id | RC_BORDER_REG), chf, srcReg); id++;
+                paintRectRegion(0, bw, 0, h, (ushort)(id | RC_BORDER_REG), chf, srcReg);
+                id++;
+                paintRectRegion(w - bw, w, 0, h, (ushort)(id | RC_BORDER_REG), chf, srcReg);
+                id++;
+                paintRectRegion(0, w, 0, bh, (ushort)(id | RC_BORDER_REG), chf, srcReg);
+                id++;
+                paintRectRegion(0, w, h - bh, h, (ushort)(id | RC_BORDER_REG), chf, srcReg);
+                id++;
 
                 chf.borderSize = borderSize;
             }
 
-            List<int> prev = new List<int>();//256
+            List<int> prev = new List<int>(); //256
             prev.Capacity = 256;
             // Sweep one line at a time.
             for (int y = borderSize; y < h - borderSize; ++y)
@@ -1181,6 +1214,7 @@ namespace RecastSharp
                 {
                     prev[i] = 0;
                 }
+
                 ushort rid = 1;
 
                 for (int x = borderSize; x < w - borderSize; ++x)
@@ -1302,7 +1336,7 @@ namespace RecastSharp
         /// 
         /// @see rcCompactHeightfield, rcCompactSpan, rcBuildDistanceField, rcBuildRegionsMonotone, rcConfig
         public static bool rcBuildRegions(rcContext ctx, rcCompactHeightfield chf,
-                            int borderSize, int minRegionArea, int mergeRegionArea)
+            int borderSize, int minRegionArea, int mergeRegionArea)
         {
             Debug.Assert(ctx != null, "rcContext is null");
 
@@ -1321,16 +1355,14 @@ namespace RecastSharp
                 lvlStacks[i] = new List<int>(1024);
                 //rccsResizeList(lvlStacks[i], 1024);
             }
-
             List<int> stack = new List<int>(1024);
-            List<int> visited = new List<int>(1024);
             //rccResizeList(stack, 1024);
             //rccResizeList(visited, 1024);
 
             ushort[] srcReg = new ushort[chf.spanCount];
-            ushort[] srcDist = new ushort[chf.spanCount];//buf+chf.spanCount;
-            ushort[] dstReg = new ushort[chf.spanCount];// buf+chf.spanCount*2;
-            ushort[] dstDist = new ushort[chf.spanCount];//buf+chf.spanCount*3;
+            ushort[] srcDist = new ushort[chf.spanCount]; //buf+chf.spanCount;
+            ushort[] dstReg = new ushort[chf.spanCount]; // buf+chf.spanCount*2;
+            ushort[] dstDist = new ushort[chf.spanCount]; //buf+chf.spanCount*3;
 
             //memset(srcReg, 0, sizeof(ushort)*chf.spanCount);
             //memset(srcDist, 0, sizeof(ushort)*chf.spanCount);
@@ -1350,10 +1382,14 @@ namespace RecastSharp
                 int bw = Math.Min(w, borderSize);
                 int bh = Math.Min(h, borderSize);
                 // Paint regions
-                paintRectRegion(0, bw, 0, h, (ushort)(regionId | RC_BORDER_REG), chf, srcReg); regionId++;
-                paintRectRegion(w - bw, w, 0, h, (ushort)(regionId | RC_BORDER_REG), chf, srcReg); regionId++;
-                paintRectRegion(0, w, 0, bh, (ushort)(regionId | RC_BORDER_REG), chf, srcReg); regionId++;
-                paintRectRegion(0, w, h - bh, h, (ushort)(regionId | RC_BORDER_REG), chf, srcReg); regionId++;
+                paintRectRegion(0, bw, 0, h, (ushort)(regionId | RC_BORDER_REG), chf, srcReg);
+                regionId++;
+                paintRectRegion(w - bw, w, 0, h, (ushort)(regionId | RC_BORDER_REG), chf, srcReg);
+                regionId++;
+                paintRectRegion(0, w, 0, bh, (ushort)(regionId | RC_BORDER_REG), chf, srcReg);
+                regionId++;
+                paintRectRegion(0, w, h - bh, h, (ushort)(regionId | RC_BORDER_REG), chf, srcReg);
+                regionId++;
 
                 chf.borderSize = borderSize;
             }
@@ -1376,7 +1412,8 @@ namespace RecastSharp
                 ctx.startTimer(rcTimerLabel.RC_TIMER_BUILD_REGIONS_EXPAND);
 
                 // Expand current regions until no empty connected cells found.
-                if (expandRegions(expandIters, level, chf, srcReg, srcDist, dstReg, dstDist, lvlStacks[sId], false) != srcReg)
+                if (expandRegions(expandIters, level, chf, srcReg, srcDist, dstReg, dstDist, lvlStacks[sId], false) !=
+                    srcReg)
                 {
                     rcSwap(ref srcReg, ref dstReg);
                     rcSwap(ref srcDist, ref dstDist);

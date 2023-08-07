@@ -1,11 +1,11 @@
 using System;
 using System.Diagnostics;
 
+// ReSharper disable All
 namespace RecastSharp
 {
     public static partial class Recast
     {
-
         const int RC_MAX_LAYERS = RC_NOT_CONNECTED;
         const int RC_MAX_NEIS = 16;
 
@@ -15,10 +15,10 @@ namespace RecastSharp
             public byte[] neis = new byte[RC_MAX_NEIS];
             public ushort ymin;
             public ushort ymax;
-            public byte layerId;		// Layer ID
-            public byte nlayers;		// Layer count
-            public byte nneis;		// Neighbour count
-            public byte baseFlag;			// Flag indicating if the region is hte base of merged regions.
+            public byte layerId; // Layer ID
+            public byte nlayers; // Layer count
+            public byte nneis; // Neighbour count
+            public byte baseFlag; // Flag indicating if the region is hte base of merged regions.
         };
 
 
@@ -32,6 +32,7 @@ namespace RecastSharp
                     return;
                 }
             }
+
             a[an] = v;
             an++;
         }
@@ -46,22 +47,22 @@ namespace RecastSharp
                     return true;
                 }
             }
+
             return false;
         }
 
         public static bool overlapRange(ushort amin, ushort amax,
-                                ushort bmin, ushort bmax)
+            ushort bmin, ushort bmax)
         {
             return (amin > bmax || amax < bmin) ? false : true;
         }
 
 
-
         public class rcLayerSweepSpan
         {
-            public ushort ns;   // number samples
+            public ushort ns; // number samples
             public byte id; // region id
-            public byte nei;	// neighbour id
+            public byte nei; // neighbour id
         };
 
         /// @par
@@ -70,8 +71,8 @@ namespace RecastSharp
         /// 
         /// @see rcAllocHeightfieldLayerSet, rcCompactHeightfield, rcHeightfieldLayerSet, rcConfig
         public static bool rcBuildHeightfieldLayers(rcContext ctx, rcCompactHeightfield chf,
-                                    int borderSize, int walkableHeight,
-                                    rcHeightfieldLayerSet lset)
+            int borderSize, int walkableHeight,
+            rcHeightfieldLayerSet lset)
         {
             Debug.Assert(ctx != null, "rcContext is null");
 
@@ -83,7 +84,8 @@ namespace RecastSharp
             byte[] srcReg = new byte[chf.spanCount];
             if (srcReg == null)
             {
-                ctx.log(rcLogCategory.RC_LOG_ERROR, "rcBuildHeightfieldLayers: Out of memory 'srcReg' " + chf.spanCount);
+                ctx.log(rcLogCategory.RC_LOG_ERROR,
+                    "rcBuildHeightfieldLayers: Out of memory 'srcReg' " + chf.spanCount);
                 return false;
             }
 
@@ -188,6 +190,7 @@ namespace RecastSharp
                             ctx.log(rcLogCategory.RC_LOG_ERROR, "rcBuildHeightfieldLayers: Region ID overflow.");
                             return false;
                         }
+
                         sweeps[i].id = regId++;
                     }
                 }
@@ -212,6 +215,7 @@ namespace RecastSharp
                 ctx.log(rcLogCategory.RC_LOG_ERROR, "rcBuildHeightfieldLayers: Out of memory 'regs' " + nregs);
                 return false;
             }
+
             //memset(regs, 0, sizeof(rcLayerRegion)*nregs);
             for (int i = 0; i < nregs; ++i)
             {
@@ -261,7 +265,6 @@ namespace RecastSharp
                                 }
                             }
                         }
-
                     }
 
                     // Update overlapping regions.
@@ -278,7 +281,6 @@ namespace RecastSharp
                             }
                         }
                     }
-
                 }
             }
 
@@ -325,11 +327,13 @@ namespace RecastSharp
                         {
                             continue;
                         }
+
                         // Skip if the neighbour is overlapping root region.
                         if (contains(root.layers, root.nlayers, nei))
                         {
                             continue;
                         }
+
                         // Skip if the height range would become too large.
                         int ymin = Math.Min(root.ymin, regn.ymin);
                         int ymax = Math.Max(root.ymax, regn.ymax);
@@ -350,6 +354,7 @@ namespace RecastSharp
                             {
                                 addUnique(root.layers, ref root.nlayers, regn.layers[k]);
                             }
+
                             root.ymin = Math.Min(root.ymin, regn.ymin);
                             root.ymax = Math.Max(root.ymax, regn.ymax);
                         }
@@ -372,7 +377,7 @@ namespace RecastSharp
 
                 byte newId = ri.layerId;
 
-                for (; ; )
+                for (;;)
                 {
                     byte oldId = 0xff;
 
@@ -382,6 +387,7 @@ namespace RecastSharp
                         {
                             continue;
                         }
+
                         rcLayerRegion rj = regs[j];
                         if (rj.baseFlag == 0)
                         {
@@ -390,12 +396,13 @@ namespace RecastSharp
 
                         // Skip if teh regions are not close to each other.
                         if (!overlapRange(ri.ymin,
-                            (ushort)(ri.ymax + mergeHeight),
-                            rj.ymin,
-                            (ushort)(rj.ymax + mergeHeight)))
+                                (ushort)(ri.ymax + mergeHeight),
+                                rj.ymin,
+                                (ushort)(rj.ymax + mergeHeight)))
                         {
                             continue;
                         }
+
                         // Skip if the height range would become too large.
                         int ymin = Math.Min(ri.ymin, rj.ymin);
                         int ymax = Math.Max(ri.ymax, rj.ymax);
@@ -419,6 +426,7 @@ namespace RecastSharp
                                 break;
                             }
                         }
+
                         // Cannot merge of regions overlap.
                         if (overlap)
                             continue;
@@ -446,6 +454,7 @@ namespace RecastSharp
                             {
                                 addUnique(ri.layers, ref ri.nlayers, rj.layers[k]);
                             }
+
                             // Update heigh bounds.
                             ri.ymin = Math.Min(ri.ymin, rj.ymin);
                             ri.ymax = Math.Max(ri.ymax, rj.ymax);
@@ -464,6 +473,7 @@ namespace RecastSharp
             {
                 remap[regs[i].layerId] = 1;
             }
+
             for (int i = 0; i < 256; ++i)
             {
                 if (remap[i] != 0)
@@ -475,6 +485,7 @@ namespace RecastSharp
                     remap[i] = 0xff;
                 }
             }
+
             // Remap ids.
             for (int i = 0; i < nregs; ++i)
             {
@@ -527,19 +538,21 @@ namespace RecastSharp
 
                 int gridSize = sizeof(byte) * lw * lh;
 
-                layer.heights = new byte[gridSize];//(byte*)rcAlloc(gridSize, RC_ALLOC_PERM);
+                layer.heights = new byte[gridSize]; //(byte*)rcAlloc(gridSize, RC_ALLOC_PERM);
                 if (layer.heights == null)
                 {
-                    ctx.log(rcLogCategory.RC_LOG_ERROR, "rcBuildHeightfieldLayers: Out of memory 'heights' " + gridSize);
+                    ctx.log(rcLogCategory.RC_LOG_ERROR,
+                        "rcBuildHeightfieldLayers: Out of memory 'heights' " + gridSize);
                     return false;
                 }
+
                 //memset(layer.heights, 0xff, gridSize);
                 for (int j = 0; j < gridSize; ++j)
                 {
                     layer.heights[j] = 0xFF;
                 }
 
-                layer.areas = new byte[gridSize];// (byte*)rcAlloc(gridSize, RC_ALLOC_PERM);
+                layer.areas = new byte[gridSize]; // (byte*)rcAlloc(gridSize, RC_ALLOC_PERM);
                 if (layer.areas == null)
                 {
                     ctx.log(rcLogCategory.RC_LOG_ERROR, "rcBuildHeightfieldLayers: Out of memory 'areas' " + gridSize);
@@ -547,7 +560,7 @@ namespace RecastSharp
                 }
                 //memset(layer.areas, 0, gridSize);
 
-                layer.cons = new byte[gridSize];//  (byte*)rcAlloc(gridSize, RC_ALLOC_PERM);
+                layer.cons = new byte[gridSize]; //  (byte*)rcAlloc(gridSize, RC_ALLOC_PERM);
                 if (layer.cons == null)
                 {
                     ctx.log(rcLogCategory.RC_LOG_ERROR, "rcBuildHeightfieldLayers: Out of memory 'cons' " + gridSize);
@@ -601,6 +614,7 @@ namespace RecastSharp
                             {
                                 continue;
                             }
+
                             // Skip of does nto belong to current layer.
                             byte lid = regs[srcReg[j]].layerId;
                             if (lid != curId)
@@ -637,6 +651,7 @@ namespace RecastSharp
                                         if (aSpan.y > hmin)
                                             layer.heights[idx] = Math.Max(layer.heights[idx], (byte)(aSpan.y - hmin));
                                     }
+
                                     // Valid connection mask
                                     if (chf.areas[ai] != RC_NULL_AREA && lid == alid)
                                     {

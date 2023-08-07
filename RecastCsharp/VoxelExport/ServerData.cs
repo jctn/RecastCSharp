@@ -1,6 +1,4 @@
-using System;
 using System.Collections.Generic;
-using System.Runtime.InteropServices;
 using System.Text;
 using UnityEngine;
 using UnityEngine.Pool;
@@ -51,7 +49,7 @@ namespace RecastSharp
 
             return keyBuilder.ToString();
         }
-        
+
 
         private static ServerSpan CreateServerSpan()
         {
@@ -89,16 +87,14 @@ namespace RecastSharp
     {
         public int voxelCellX; // x最大坐标
         public int voxelMaxHeight; // y最大坐标
-        public int voxelCellY; // z最大坐标
-        public int spanCnt; // 总span数量
+        public int voxelCellZ; // z最大坐标
         public ServerCell[] cells; // 地图xy平面格子
-        public ServerSpan[] spans; // 地图体素数据
 
         public void Init(Recast.rcHeightfield hf)
         {
             voxelCellX = hf.width - 1;
             voxelMaxHeight = Mathf.CeilToInt(hf.bmax[1] / hf.ch) - 1;
-            voxelCellY = hf.height - 1;
+            voxelCellZ = hf.height - 1;
             cells = new ServerCell[hf.width * hf.height];
         }
     }

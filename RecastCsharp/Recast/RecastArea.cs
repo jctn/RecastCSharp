@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.Linq;
+// ReSharper disable All
 
 namespace RecastSharp
 {

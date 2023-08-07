@@ -9,6 +9,7 @@ using System;
 using dtPolyRef = System.UInt32;
 using dtStatus = System.UInt32;
 
+// ReSharper disable All
 namespace RecastSharp
 {
     using static DetourCommon;
@@ -21,11 +22,15 @@ namespace RecastSharp
 
     public unsafe class dtQueryFilter
     {
-        private float[] m_areaCost = new float[DT_MAX_AREAS]; ///< Cost per area type. (Used by default implementation.)
-        private ushort m_includeFlags; ///< Flags for polygons that can be visited. (Used by default implementation.)
-        private ushort m_excludeFlags; ///< Flags for polygons that should not be visted. (Used by default implementation.)
+        private float[] m_areaCost = new float[DT_MAX_AREAS];
 
+         /// Cost per area type. (Used by default implementation.)
+        private ushort m_includeFlags;
 
+         /// Flags for polygons that can be visited. (Used by default implementation.)
+        private ushort m_excludeFlags;
+
+         /// Flags for polygons that should not be visted. (Used by default implementation.)
         /// @class dtQueryFilter
         ///
         /// <b>The Default Implementation</b>
@@ -56,7 +61,6 @@ namespace RecastSharp
         /// to lead to problems during pathfinding.
         ///
         /// @see dtNavMeshQuery
-
         public dtQueryFilter()
         {
             m_includeFlags = 0xffff;
@@ -170,7 +174,6 @@ namespace RecastSharp
     /// @ingroup detour
     public unsafe interface dtPolyQuery
     {
-
         /// Called for each batch of unique polygons touched by the search area in dtNavMeshQuery::queryPolygons.
         /// This can be called multiple times for a single query.
         void process(dtMeshTile* tile, dtPoly** polys, dtPolyRef* refs, int count);
@@ -181,7 +184,6 @@ namespace RecastSharp
     /// @ingroup detour
     public unsafe class dtNavMeshQuery : System.IDisposable
     {
-
         //////////////////////////////////////////////////////////////////////////////////////////
 
         /// @class dtNavMeshQuery
@@ -199,7 +201,6 @@ namespace RecastSharp
         /// A portal may be treated as a wall based on the dtQueryFilter used for a query.
         ///
         /// @see dtNavMesh, dtQueryFilter, #dtAllocNavMeshQuery(), #dtAllocNavMeshQuery()
-
         public dtNavMeshQuery()
         {
         }
@@ -233,7 +234,6 @@ namespace RecastSharp
         ///  @param[in]        nav            Pointer to the dtNavMesh object to use for all queries.
         ///  @param[in]        maxNodes    Maximum number of search nodes. [Limits: 0 < value <= 65535]
         /// @returns The status flags for the query.
-
         /// @par 
         ///
         /// Must be the first function called after construction, before other
@@ -254,6 +254,7 @@ namespace RecastSharp
                     m_nodePool.Dispose();
                     m_nodePool = null;
                 }
+
                 m_nodePool = new dtNodePool(maxNodes, (int)dtNextPow2((uint)(maxNodes / 4)));
                 if (m_nodePool == null)
                     return DT_FAILURE | DT_OUT_OF_MEMORY;
@@ -281,6 +282,7 @@ namespace RecastSharp
                     m_openList.Dispose();
                     m_openList = null;
                 }
+
                 m_openList = new dtNodeQueue(maxNodes);
                 if (m_openList == null)
                     return DT_FAILURE | DT_OUT_OF_MEMORY;
@@ -294,7 +296,6 @@ namespace RecastSharp
         }
 
         /// @name Standard Pathfinding Functions
-
         /// Finds a path from the start polygon to the end polygon.
         ///  @param[in]        startRef    The refrence id of the start polygon.
         ///  @param[in]        endRef        The reference id of the end polygon.
@@ -305,7 +306,6 @@ namespace RecastSharp
         ///                              [(polyRef) * @p pathCount]
         ///  @param[out]    pathCount    The number of polygons returned in the @p path array.
         ///  @param[in]        maxPath        The maximum number of polygons the @p path array can hold. [Limit: >= 1]
-
         /// @par
         ///
         /// If the end polygon cannot be reached through the navigation graph,
@@ -317,7 +317,8 @@ namespace RecastSharp
         /// The start and end positions are used to calculate traversal costs. 
         /// (The y-values impact the result.)
         ///
-        public dtStatus findPath(dtPolyRef startRef, dtPolyRef endRef, float* startPos, float* endPos, ref dtQueryFilter filter, dtPolyRef* path, out int pathCount, int maxPath)
+        public dtStatus findPath(dtPolyRef startRef, dtPolyRef endRef, float* startPos, float* endPos,
+            ref dtQueryFilter filter, dtPolyRef* path, out int pathCount, int maxPath)
         {
             dtAssert(m_nav != null);
             dtAssert(m_nodePool != null);
@@ -326,7 +327,8 @@ namespace RecastSharp
             pathCount = 0;
 
             // Validate input
-            if (!m_nav!.isValidPolyRef(startRef) || !m_nav.isValidPolyRef(endRef) || startPos == null || !dtVisfinite(startPos) || endPos == null || !dtVisfinite(endPos) || path == null || maxPath <= 0)
+            if (!m_nav!.isValidPolyRef(startRef) || !m_nav.isValidPolyRef(endRef) || startPos == null ||
+                !dtVisfinite(startPos) || endPos == null || !dtVisfinite(endPos) || path == null || maxPath <= 0)
                 return DT_FAILURE | DT_INVALID_PARAM;
 
             if (startRef == endRef)
@@ -416,7 +418,8 @@ namespace RecastSharp
                     // If the node is visited the first time, calculate node position.
                     if (neighbourNode->flags == 0)
                     {
-                        getEdgeMidPoint(bestRef, bestPoly, bestTile, neighbourRef, neighbourPoly, neighbourTile, neighbourNode->pos);
+                        getEdgeMidPoint(bestRef, bestPoly, bestTile, neighbourRef, neighbourPoly, neighbourTile,
+                            neighbourNode->pos);
                     }
 
                     // Calculate cost and heuristic.
@@ -510,7 +513,6 @@ namespace RecastSharp
         ///  @param[in]        maxStraightPath        The maximum number of points the straight path arrays can hold.  [Limit: > 0]
         ///  @param[in]        options                Query options. (see: #dtStraightPathOptions)
         /// @returns The status flags for the query.
-
         /// @par
         /// 
         /// This method peforms what is often called 'string pulling'.
@@ -592,7 +594,8 @@ namespace RecastSharp
                         byte fromType = 0; // fromType is ignored.
 
                         // Next portal.
-                        if (dtStatusFailed(getPortalPoints(path[i], path[i + 1], left, right, ref fromType, ref toType)))
+                        if (dtStatusFailed(getPortalPoints(path[i], path[i + 1], left, right, ref fromType,
+                                ref toType)))
                         {
                             // Failed to get portal points, in practice this means that path[i+1] is invalid polygon.
                             // Clamp the end point to path[i], and return the path so far.
@@ -617,7 +620,8 @@ namespace RecastSharp
                                 straightPath, straightPathFlags, straightPathRefs,
                                 ref straightPathCount, maxStraightPath);
 
-                            return DT_SUCCESS | DT_PARTIAL_RESULT | ((straightPathCount >= maxStraightPath) ? DT_BUFFER_TOO_SMALL : 0);
+                            return DT_SUCCESS | DT_PARTIAL_RESULT |
+                                   ((straightPathCount >= maxStraightPath) ? DT_BUFFER_TOO_SMALL : 0);
                         }
 
                         // If starting really close the portal, advance.
@@ -764,7 +768,6 @@ namespace RecastSharp
         ///    -# Call initSlicedFindPath() to initialize the sliced path query.
         ///    -# Call updateSlicedFindPath() until it returns complete.
         ///    -# Call finalizeSlicedFindPath() to get the path.
-
         /// Intializes a sliced path query.
         ///  @param[in]        startRef    The refrence id of the start polygon.
         ///  @param[in]        endRef        The reference id of the end polygon.
@@ -773,7 +776,6 @@ namespace RecastSharp
         ///  @param[in]        filter        The polygon filter to apply to the query.
         ///  @param[in]        options        query options (see: #dtFindPathOptions)
         /// @returns The status flags for the query.
-
         /// @par
         ///
         /// @warning Calling any non-slice methods before calling finalizeSlicedFindPath() 
@@ -799,11 +801,13 @@ namespace RecastSharp
                 fixed (float* queryStartPos = m_query.startPos)
                     dtVcopy(queryStartPos, startPos);
             }
+
             if (endPos != null)
             {
                 fixed (float* queryEndPos = m_query.endPos)
                     dtVcopy(queryEndPos, endPos);
             }
+
             m_query.filter = filter;
             m_query.options = options;
             m_query.raycastLimitSqr = float.MaxValue;
@@ -823,7 +827,8 @@ namespace RecastSharp
                 // so it is enough to compute it from the first tile.
                 dtMeshTile* tile = m_nav.getTileByRef(startRef);
                 float agentRadius = tile->header->walkableRadius;
-                m_query.raycastLimitSqr = (agentRadius * DT_RAY_CAST_LIMIT_PROPORTIONS) * (agentRadius * DT_RAY_CAST_LIMIT_PROPORTIONS);
+                m_query.raycastLimitSqr = (agentRadius * DT_RAY_CAST_LIMIT_PROPORTIONS) *
+                                          (agentRadius * DT_RAY_CAST_LIMIT_PROPORTIONS);
             }
 
             if (startRef == endRef)
@@ -918,9 +923,11 @@ namespace RecastSharp
                     if (parentNode->pidx != 0)
                         grandpaRef = m_nodePool.getNodeAtIdx(parentNode->pidx)->id;
                 }
+
                 if (parentRef != 0)
                 {
-                    bool invalidParent = dtStatusFailed(m_nav.getTileAndPolyByRef(parentRef, out parentTile, out parentPoly));
+                    bool invalidParent =
+                        dtStatusFailed(m_nav.getTileAndPolyByRef(parentRef, out parentTile, out parentPoly));
                     if (invalidParent || (grandpaRef != 0 && !m_nav.isValidPolyRef(grandpaRef)))
                     {
                         // The polygon has disappeared during the sliced query, fail.
@@ -984,7 +991,8 @@ namespace RecastSharp
                     rayHit.pathCost = rayHit.t = 0F;
                     if (tryLOS)
                     {
-                        raycast(parentRef, parentNode->pos, neighbourNode->pos, m_query.filter, (uint)DT_RAYCAST_USE_COSTS, &rayHit, grandpaRef);
+                        raycast(parentRef, parentNode->pos, neighbourNode->pos, m_query.filter,
+                            (uint)DT_RAYCAST_USE_COSTS, &rayHit, grandpaRef);
                         foundShortCut = rayHit.t >= 1.0f;
                     }
 
@@ -1119,8 +1127,12 @@ namespace RecastSharp
                     dtNode* next = m_nodePool!.getNodeAtIdx(node->pidx);
                     node->pidx = m_nodePool.getNodeIdx(prev);
                     prev = node;
-                    int nextRay = node->flags & (int)DT_NODE_PARENT_DETACHED; // keep track of whether parent is not adjacent (i.e. due to raycast shortcut)
-                    node->flags = (node->flags & (int)~DT_NODE_PARENT_DETACHED) | prevRay; // and store it in the reversed path's node
+                    int nextRay =
+                        node->flags &
+                        (int)DT_NODE_PARENT_DETACHED; // keep track of whether parent is not adjacent (i.e. due to raycast shortcut)
+                    node->flags =
+                        (node->flags & (int)~DT_NODE_PARENT_DETACHED) |
+                        prevRay; // and store it in the reversed path's node
                     prevRay = nextRay;
                     node = next;
                 } while (node != null);
@@ -1136,7 +1148,8 @@ namespace RecastSharp
                     {
                         float t;
                         int m;
-                        status = raycast(node->id, node->pos, next->pos, m_query.filter, out t, normal, path + n, out m, maxPath - n);
+                        status = raycast(node->id, node->pos, next->pos, m_query.filter, out t, normal, path + n, out m,
+                            maxPath - n);
                         n += m;
                         // raycast ends on poly boundary and the path might include the next poly boundary.
                         if (path[n - 1] == next->id)
@@ -1154,6 +1167,7 @@ namespace RecastSharp
                         m_query.status |= status & DT_STATUS_DETAIL_MASK;
                         break;
                     }
+
                     node = next;
                 } while (node != null);
             }
@@ -1225,8 +1239,12 @@ namespace RecastSharp
                     dtNode* next = m_nodePool!.getNodeAtIdx(node->pidx);
                     node->pidx = m_nodePool.getNodeIdx(prev);
                     prev = node;
-                    int nextRay = node->flags & (int)DT_NODE_PARENT_DETACHED; // keep track of whether parent is not adjacent (i.e. due to raycast shortcut)
-                    node->flags = (node->flags & (int)~DT_NODE_PARENT_DETACHED) | prevRay; // and store it in the reversed path's node
+                    int nextRay =
+                        node->flags &
+                        (int)DT_NODE_PARENT_DETACHED; // keep track of whether parent is not adjacent (i.e. due to raycast shortcut)
+                    node->flags =
+                        (node->flags & (int)~DT_NODE_PARENT_DETACHED) |
+                        prevRay; // and store it in the reversed path's node
                     prevRay = nextRay;
                     node = next;
                 } while (node != null);
@@ -1242,7 +1260,8 @@ namespace RecastSharp
                     {
                         float t;
                         int m;
-                        status = raycast(node->id, node->pos, next->pos, m_query.filter, out t, normal, path + n, out m, maxPath - n);
+                        status = raycast(node->id, node->pos, next->pos, m_query.filter, out t, normal, path + n, out m,
+                            maxPath - n);
                         n += m;
                         // raycast ends on poly boundary and the path might include the next poly boundary.
                         if (path[n - 1] == next->id)
@@ -1260,6 +1279,7 @@ namespace RecastSharp
                         m_query.status |= status & DT_STATUS_DETAIL_MASK;
                         break;
                     }
+
                     node = next;
                 } while (node != null);
             }
@@ -1275,7 +1295,6 @@ namespace RecastSharp
         }
 
         /// @name Dijkstra Search Functions
-
         /// Finds the polygons along the navigation graph that touch the specified circle.
         ///  @param[in]        startRef        The reference id of the polygon where the search starts.
         ///  @param[in]        centerPos        The center of the search circle. [(x, y, z)]
@@ -1288,7 +1307,6 @@ namespace RecastSharp
         ///  @param[out]    resultCount        The number of polygons found. [opt]
         ///  @param[in]        maxResult        The maximum number of polygons the result arrays can hold.
         /// @returns The status flags for the query.
-
         /// @par
         ///
         /// At least one result array must be provided.
@@ -1412,7 +1430,8 @@ namespace RecastSharp
                         continue;
 
                     // Find edge and calc distance to the edge.
-                    if (getPortalPoints(bestRef, bestPoly, bestTile, neighbourRef, neighbourPoly, neighbourTile, va, vb) == 0)
+                    if (getPortalPoints(bestRef, bestPoly, bestTile, neighbourRef, neighbourPoly, neighbourTile, va,
+                            vb) == 0)
                         continue;
 
                     // If the circle is not touching the next polygon, skip it.
@@ -1481,7 +1500,6 @@ namespace RecastSharp
         ///  @param[out]    resultCount        The number of polygons found.
         ///  @param[in]        maxResult        The maximum number of polygons the result arrays can hold.
         /// @returns The status flags for the query.
-
         /// @par
         ///
         /// The order of the result set is from least to highest cost.
@@ -1605,7 +1623,8 @@ namespace RecastSharp
                         continue;
 
                     // Find edge and calc distance to the edge.
-                    if (getPortalPoints(bestRef, bestPoly, bestTile, neighbourRef, neighbourPoly, neighbourTile, va, vb) == 0)
+                    if (getPortalPoints(bestRef, bestPoly, bestTile, neighbourRef, neighbourPoly, neighbourTile, va,
+                            vb) == 0)
                         continue;
 
                     // If the poly is not touching the edge to the next polygon, skip the connection it.
@@ -1695,7 +1714,6 @@ namespace RecastSharp
         }
 
         /// @name Local Query Functions
-
         /// Finds the polygon nearest to the specified center point.
         /// [opt] means the specified parameter can be a null pointer, in that case the output parameter will not be set.
         ///
@@ -1705,7 +1723,6 @@ namespace RecastSharp
         ///  @param[out]    nearestRef    The reference id of the nearest polygon. Will be set to 0 if no polygon is found.
         ///  @param[out]    nearestPt    The nearest point on the polygon. Unchanged if no polygon is found. [opt] [(x, y, z)]
         /// @returns The status flags for the query.
-
         /// @par 
         ///
         /// @note If the search box does not intersect any polygons the search will 
@@ -1768,7 +1785,6 @@ namespace RecastSharp
         ///  @param[out]    polyCount    The number of polygons in the search result.
         ///  @param[in]        maxPolys    The maximum number of polygons the search result can hold.
         /// @returns The status flags for the query.
-
         /// @par 
         ///
         /// If no polygons are found, the function will return #DT_SUCCESS with a
@@ -1802,7 +1818,6 @@ namespace RecastSharp
         ///  @param[in]        halfExtents        The search distance along each axis. [(x, y, z)]
         ///  @param[in]        filter        The polygon filter to apply to the query.
         ///  @param[in]        query        The query. Polygons found will be batched together and passed to this query.
-
         /// @par 
         ///
         /// The query will be invoked with batches of polygons. Polygons passed
@@ -1864,7 +1879,6 @@ namespace RecastSharp
         ///  @param[out]    resultCount        The number of polygons found.
         ///  @param[in]        maxResult        The maximum number of polygons the result arrays can hold.
         /// @returns The status flags for the query.
-
         /// @par
         ///
         /// This method is optimized for a small search radius and small number of result 
@@ -1984,7 +1998,8 @@ namespace RecastSharp
                         continue;
 
                     // Find edge and calc distance to the edge.
-                    if (getPortalPoints(curRef, curPoly, curTile, neighbourRef, neighbourPoly, neighbourTile, va, vb) == 0)
+                    if (getPortalPoints(curRef, curPoly, curTile, neighbourRef, neighbourPoly, neighbourTile, va, vb) ==
+                        0)
                         continue;
 
                     // If the circle is not touching the next polygon, skip it.
@@ -2020,6 +2035,7 @@ namespace RecastSharp
                                 break;
                             }
                         }
+
                         if (connected)
                             continue;
 
@@ -2039,6 +2055,7 @@ namespace RecastSharp
                             break;
                         }
                     }
+
                     if (overlap)
                         continue;
 
@@ -2077,7 +2094,6 @@ namespace RecastSharp
         ///  @param[out]    visitedCount    The number of polygons visited during the move.
         ///  @param[in]        maxVisitedSize    The maximum number of polygons the @p visited array can hold.
         /// @returns The status flags for the query.
-
         /// @par
         ///
         /// This method is optimized for small delta movement and a small number of 
@@ -2286,6 +2302,7 @@ namespace RecastSharp
                         status |= DT_BUFFER_TOO_SMALL;
                         break;
                     }
+
                     node = m_tinyNodePool.getNodeAtIdx(node->pidx);
                 } while (node != null);
             }
@@ -2311,7 +2328,6 @@ namespace RecastSharp
         ///  @param[out]    pathCount    The number of visited polygons. [opt]
         ///  @param[in]        maxPath        The maximum number of polygons the @p path array can hold.
         /// @returns The status flags for the query.
-
         /// @par
         ///
         /// This method is meant to be used for quick, short distance checks.
@@ -2379,7 +2395,6 @@ namespace RecastSharp
         ///  @param[out]    hit            Pointer to a raycast hit structure which will be filled by the results.
         ///  @param[in]        prevRef        parent of start ref. Used during for cost calculation [opt]
         /// @returns The status flags for the query.
-
         /// @par
         ///
         /// This method is meant to be used for quick, short distance checks.
@@ -2518,7 +2533,8 @@ namespace RecastSharp
 
                     // add the cost
                     if ((options & (uint)DT_RAYCAST_USE_COSTS) != 0)
-                        hit->pathCost += filter.getCost(curPos, endPos, prevRef, prevTile, prevPoly, curRef, tile, poly, curRef, tile, poly);
+                        hit->pathCost += filter.getCost(curPos, endPos, prevRef, prevTile, prevPoly, curRef, tile, poly,
+                            curRef, tile, poly);
                     return status;
                 }
 
@@ -2617,7 +2633,8 @@ namespace RecastSharp
                     float s = (eDir[0]) * (eDir[0]) > (eDir[2]) * (eDir[2]) ? diff[0] / eDir[0] : diff[2] / eDir[2];
                     curPos[1] = e1[1] + eDir[1] * s;
 
-                    hit->pathCost += filter.getCost(lastPos, curPos, prevRef, prevTile, prevPoly, curRef, tile, poly, nextRef, nextTile, nextPoly);
+                    hit->pathCost += filter.getCost(lastPos, curPos, prevRef, prevTile, prevPoly, curRef, tile, poly,
+                        nextRef, nextTile, nextPoly);
                 }
 
                 if (nextRef == 0)
@@ -2665,7 +2682,6 @@ namespace RecastSharp
         ///  @param[out]    hitNormal        The normalized ray formed from the wall point to the 
         ///                                  source point. [(x, y, z)]
         /// @returns The status flags for the query.
-
         /// @par
         ///
         /// @p hitPos is not adjusted using the height detail data.
@@ -2754,9 +2770,11 @@ namespace RecastSharp
                                     if (filter.passFilter(link->@ref, neiTile, neiPoly))
                                         solid = false;
                                 }
+
                                 break;
                             }
                         }
+
                         if (!solid) continue;
                     }
                     else if (bestPoly->neis[j] != 0)
@@ -2874,7 +2892,6 @@ namespace RecastSharp
         ///  @param[out]	segmentCount	The number of segments returned.
         ///  @param[in]		maxSegments		The maximum number of segments the result arrays can hold.
         /// @returns The status flags for the query.
-
         /// @par
         ///
         /// If the @p segmentRefs parameter is provided, then all polygon segments will be returned. 
@@ -3062,6 +3079,7 @@ namespace RecastSharp
                 if (u * tsum <= area)
                     tile = _t;
             }
+
             if (tile == null)
                 return DT_FAILURE;
 
@@ -3213,6 +3231,7 @@ namespace RecastSharp
                         float* _vc = &bestTile->verts[bestPoly->verts[j] * 3];
                         polyArea += dtTriArea2D(_va, _vb, _vc);
                     }
+
                     // Choose random polygon weighted by area, using reservoi sampling.
                     areaSum += polyArea;
                     float u = frand();
@@ -3252,7 +3271,8 @@ namespace RecastSharp
                         continue;
 
                     // Find edge and calc distance to the edge.
-                    if (getPortalPoints(bestRef, bestPoly, bestTile, neighbourRef, neighbourPoly, neighbourTile, va, vb) == 0)
+                    if (getPortalPoints(bestRef, bestPoly, bestTile, neighbourRef, neighbourPoly, neighbourTile, va,
+                            vb) == 0)
                         continue;
 
                     // If the circle is not touching the next polygon, skip it.
@@ -3365,7 +3385,6 @@ namespace RecastSharp
         ///  @param[in]		pos			The position to check. [(x, y, z)]
         ///  @param[out]	closest		The closest point. [(x, y, z)]
         /// @returns The status flags for the query.
-
         /// @par
         ///
         /// Much faster than closestPointOnPoly().
@@ -3419,6 +3438,7 @@ namespace RecastSharp
                         imin = i;
                     }
                 }
+
                 float* va = &verts[imin * 3];
                 float* vb = &verts[((imin + 1) % nv) * 3];
                 dtVlerp(closest, va, vb, edget[imin]);
@@ -3432,7 +3452,6 @@ namespace RecastSharp
         ///  @param[in]		pos			A position within the xz-bounds of the polygon. [(x, y, z)]
         ///  @param[out]	height		The height at the surface of the polygon.
         /// @returns The status flags for the query.
-
         /// @par
         ///
         /// Will return #DT_FAILURE | DT_INVALID_PARAM if the provided position is outside the xz-bounds 
@@ -3470,7 +3489,6 @@ namespace RecastSharp
         }
 
         /// @name Miscellaneous Functions
-
         /// Returns true if the polygon reference is valid and passes the filter restrictions.
         ///  @param[in]		ref			The polygon reference to check.
         ///  @param[in]		filter		The filter to apply.
@@ -3491,7 +3509,6 @@ namespace RecastSharp
         /// Returns true if the polygon reference is in the closed list. 
         ///  @param[in]		ref		The reference id of the polygon to check.
         /// @returns True if the polygon is in closed list.
-
         /// @par
         ///
         /// The closed list is the list of polygons that were fully evaluated during 
@@ -3626,6 +3643,7 @@ namespace RecastSharp
                         dtVmin(bmin, v);
                         dtVmax(bmax, v);
                     }
+
                     if (dtOverlapBounds(qmin, qmax, bmin, bmax))
                     {
                         polyRefs[n] = @ref;
@@ -3686,6 +3704,7 @@ namespace RecastSharp
                     break;
                 }
             }
+
             if (link == null)
                 return DT_FAILURE | DT_INVALID_PARAM;
 
@@ -3703,6 +3722,7 @@ namespace RecastSharp
                         return DT_SUCCESS;
                     }
                 }
+
                 return DT_FAILURE | DT_INVALID_PARAM;
             }
 
@@ -3718,6 +3738,7 @@ namespace RecastSharp
                         return DT_SUCCESS;
                     }
                 }
+
                 return DT_FAILURE | DT_INVALID_PARAM;
             }
 
@@ -3806,6 +3827,7 @@ namespace RecastSharp
                 if (flags == (byte)DT_STRAIGHTPATH_END)
                     return DT_SUCCESS;
             }
+
             return DT_IN_PROGRESS;
         }
 
@@ -3852,11 +3874,13 @@ namespace RecastSharp
                 {
                     dtVlerp(pt, left, right, t);
 
-                    stat = appendVertex(pt, 0, path[i + 1], straightPath, straightPathFlags, straightPathRefs, ref straightPathCount, maxStraightPath);
+                    stat = appendVertex(pt, 0, path[i + 1], straightPath, straightPathFlags, straightPathRefs,
+                        ref straightPathCount, maxStraightPath);
                     if (stat != DT_IN_PROGRESS)
                         return stat;
                 }
             }
+
             return DT_IN_PROGRESS;
         }
 
@@ -3902,7 +3926,7 @@ namespace RecastSharp
         }
 
         static void insertInterval(dtSegInterval* ints, ref int nints, int maxInts,
-                                short tmin, short tmax, dtPolyRef @ref)
+            short tmin, short tmax, dtPolyRef @ref)
         {
             if (nints + 1 > maxInts) return;
             // Find insertion point.
@@ -3913,6 +3937,7 @@ namespace RecastSharp
                     break;
                 idx++;
             }
+
             // Move current results.
             if ((nints - idx) != 0)
             {
@@ -3927,8 +3952,9 @@ namespace RecastSharp
             nints++;
         }
 
-        private dtNavMesh m_nav; ///< Pointer to navmesh data.
+        private dtNavMesh m_nav;
 
+         /// Pointer to navmesh data.
         private unsafe struct dtQueryData
         {
             public dtStatus status;
@@ -3960,12 +3986,19 @@ namespace RecastSharp
                 raycastLimitSqr = 0;
             }
         }
-        private dtQueryData m_query; ///< Sliced query state.
 
-        private dtNodePool m_tinyNodePool; ///< Pointer to small node pool.
-		private dtNodePool m_nodePool; ///< Pointer to node pool.
-		private dtNodeQueue m_openList; ///< Pointer to open list queue.
-	}
+        private dtQueryData m_query;
+
+         /// Sliced query state.
+        private dtNodePool m_tinyNodePool;
+
+         /// Pointer to small node pool.
+        private dtNodePool m_nodePool;
+
+         /// Pointer to node pool.
+        private dtNodeQueue m_openList;  /// Pointer to open list queue.
+    }
+
     public unsafe class dtFindNearestPolyQuery : dtPolyQuery
     {
         private dtNavMeshQuery m_query;
@@ -3986,10 +4019,12 @@ namespace RecastSharp
         {
             return m_nearestRef;
         }
+
         public ReadOnlySpan<float> nearestPoint()
         {
             return new ReadOnlySpan<float>(m_nearestPoint);
         }
+
         public bool isOverPoly()
         {
             return m_overPoly;
@@ -4048,6 +4083,7 @@ namespace RecastSharp
         {
             return m_numCollected;
         }
+
         public bool overflowed()
         {
             return m_overflow;

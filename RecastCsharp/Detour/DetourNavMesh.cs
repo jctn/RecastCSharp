@@ -8,6 +8,7 @@ using dtTileRef = System.UInt32;
 using static RecastSharp.DetourCommon;
 using dtStatus = System.UInt32;
 
+// ReSharper disable All
 namespace RecastSharp
 {
     using static dtTileFlags;
@@ -24,34 +25,40 @@ namespace RecastSharp
     /// Vertex flags returned by dtNavMeshQuery::findStraightPath.
     public enum dtStraightPathFlags
     {
-        DT_STRAIGHTPATH_START = 0x01, ///< The vertex is the start position in the path.
-        DT_STRAIGHTPATH_END = 0x02, ///< The vertex is the end position in the path.
-        DT_STRAIGHTPATH_OFFMESH_CONNECTION = 0x04 ///< The vertex is the start of an off-mesh connection.
+        DT_STRAIGHTPATH_START = 0x01,
+
+        /// The vertex is the start position in the path.
+        DT_STRAIGHTPATH_END = 0x02,
+
+        /// The vertex is the end position in the path.
+        DT_STRAIGHTPATH_OFFMESH_CONNECTION = 0x04 /// The vertex is the start of an off-mesh connection.
     }
 
     /// Options for dtNavMeshQuery::findStraightPath.
     public enum dtStraightPathOptions
     {
-        DT_STRAIGHTPATH_AREA_CROSSINGS = 0x01, ///< Add a vertex at every polygon edge crossing where area changes.
-        DT_STRAIGHTPATH_ALL_CROSSINGS = 0x02 ///< Add a vertex at every polygon edge crossing.
+        DT_STRAIGHTPATH_AREA_CROSSINGS = 0x01,
+
+        /// Add a vertex at every polygon edge crossing where area changes.
+        DT_STRAIGHTPATH_ALL_CROSSINGS = 0x02 /// Add a vertex at every polygon edge crossing.
     }
 
 
     /// Options for dtNavMeshQuery::initSlicedFindPath and updateSlicedFindPath
     public enum dtFindPathOptions
     {
-        DT_FINDPATH_ANY_ANGLE = 0x02 ///< use raycasts during pathfind to "shortcut" (raycast still consider costs)
+        DT_FINDPATH_ANY_ANGLE = 0x02 /// use raycasts during pathfind to "shortcut" (raycast still consider costs)
     }
 
     /// Options for dtNavMeshQuery::raycast
     public enum dtRaycastOptions
     {
-        DT_RAYCAST_USE_COSTS = 0x01 ///< Raycast should calculate movement cost along the ray and fill RaycastHit::cost
+        DT_RAYCAST_USE_COSTS = 0x01 /// Raycast should calculate movement cost along the ray and fill RaycastHit::cost
     }
 
     public enum dtDetailTriEdgeFlags
     {
-        DT_DETAIL_EDGE_BOUNDARY = 0x01 ///< Detail triangle edge is part of the poly boundary
+        DT_DETAIL_EDGE_BOUNDARY = 0x01 /// Detail triangle edge is part of the poly boundary
     }
 
     /// Flags representing the type of a navigation mesh polygon.
@@ -59,6 +66,7 @@ namespace RecastSharp
     {
         /// The polygon is a standard convex polygon that is part of the surface of the mesh.
         DT_POLYTYPE_GROUND = 0,
+
         /// The polygon is an off-mesh connection consisting of two vertices.
         DT_POLYTYPE_OFFMESH_CONNECTION = 1
     }
@@ -116,10 +124,16 @@ namespace RecastSharp
     /// Defines the location of detail sub-mesh data within a dtMeshTile.
     public struct dtPolyDetail
     {
-        public uint vertBase; ///< The offset of the vertices in the dtMeshTile::detailVerts array.
-        public uint triBase; ///< The offset of the triangles in the dtMeshTile::detailTris array.
-        public byte vertCount; ///< The number of vertices in the sub-mesh.
-        public byte triCount; ///< The number of triangles in the sub-mesh.
+        public uint vertBase;
+
+        /// The offset of the vertices in the dtMeshTile::detailVerts array.
+        public uint triBase;
+
+        /// The offset of the triangles in the dtMeshTile::detailTris array.
+        public byte vertCount;
+
+        /// The number of vertices in the sub-mesh.
+        public byte triCount; /// The number of triangles in the sub-mesh.
     }
 
     /// Defines a link between polygons.
@@ -127,12 +141,22 @@ namespace RecastSharp
     /// @see dtMeshTile
     public struct dtLink
     {
-        public dtPolyRef @ref; ///< Neighbour reference. (The neighbor that is linked to.)
-        public uint next; ///< Index of the next link.
-        public byte edge; ///< Index of the polygon edge that owns this link.
-        public byte side; ///< If a boundary link, defines on which side the link is.
-        public byte bmin; ///< If a boundary link, defines the minimum sub-edge area.
-        public byte bmax; ///< If a boundary link, defines the maximum sub-edge area.
+        public dtPolyRef @ref;
+
+        /// Neighbour reference. (The neighbor that is linked to.)
+        public uint next;
+
+        /// Index of the next link.
+        public byte edge;
+
+        /// Index of the polygon edge that owns this link.
+        public byte side;
+
+        /// If a boundary link, defines on which side the link is.
+        public byte bmin;
+
+        /// If a boundary link, defines the minimum sub-edge area.
+        public byte bmax; /// If a boundary link, defines the maximum sub-edge area.
     }
 
     /// Bounding volume node.
@@ -140,9 +164,13 @@ namespace RecastSharp
     /// @see dtMeshTile
     public unsafe struct dtBVNode
     {
-        public fixed ushort bmin[3]; ///< Minimum bounds of the node's AABB. [(x, y, z)]
-        public fixed ushort bmax[3]; ///< Maximum bounds of the node's AABB. [(x, y, z)]
-        public int i; ///< The node's index. (Negative for escape sequence.)
+        public fixed ushort bmin[3];
+
+        /// Minimum bounds of the node's AABB. [(x, y, z)]
+        public fixed ushort bmax[3];
+
+        /// Maximum bounds of the node's AABB. [(x, y, z)]
+        public int i; /// The node's index. (Negative for escape sequence.)
     }
 
     /// Defines an navigation mesh off-mesh connection within a dtMeshTile object.
@@ -174,30 +202,66 @@ namespace RecastSharp
     /// @ingroup detour
     public unsafe struct dtMeshHeader
     {
-        public int magic; ///< Tile magic number. (Used to identify the data format.)
-        public int version; ///< Tile data format version number.
-        public int x; ///< The x-position of the tile within the dtNavMesh tile grid. (x, y, layer)
-        public int y; ///< The y-position of the tile within the dtNavMesh tile grid. (x, y, layer)
-        public int layer; ///< The layer of the tile within the dtNavMesh tile grid. (x, y, layer)
-        public uint userId; ///< The user defined id of the tile.
-        public int polyCount; ///< The number of polygons in the tile.
-        public int vertCount; ///< The number of vertices in the tile.
-        public int maxLinkCount; ///< The number of allocated links.
-        public int detailMeshCount; ///< The number of sub-meshes in the detail mesh.
+        public int magic;
 
+        /// Tile magic number. (Used to identify the data format.)
+        public int version;
+
+        /// Tile data format version number.
+        public int x;
+
+        /// The x-position of the tile within the dtNavMesh tile grid. (x, y, layer)
+        public int y;
+
+        /// The y-position of the tile within the dtNavMesh tile grid. (x, y, layer)
+        public int layer;
+
+        /// The layer of the tile within the dtNavMesh tile grid. (x, y, layer)
+        public uint userId;
+
+        /// The user defined id of the tile.
+        public int polyCount;
+
+        /// The number of polygons in the tile.
+        public int vertCount;
+
+        /// The number of vertices in the tile.
+        public int maxLinkCount;
+
+        /// The number of allocated links.
+        public int detailMeshCount;
+
+        /// The number of sub-meshes in the detail mesh.
         /// The number of unique vertices in the detail mesh. (In addition to the polygon vertices.)
         public int detailVertCount;
 
-        public int detailTriCount; ///< The number of triangles in the detail mesh.
-        public int bvNodeCount; ///< The number of bounding volume nodes. (Zero if bounding volumes are disabled.)
-        public int offMeshConCount; ///< The number of off-mesh connections.
-        public int offMeshBase; ///< The index of the first polygon which is an off-mesh connection.
-        public float walkableHeight; ///< The height of the agents using the tile.
-        public float walkableRadius; ///< The radius of the agents using the tile.
-        public float walkableClimb; ///< The maximum climb height of the agents using the tile.
-        public fixed float bmin[3]; ///< The minimum bounds of the tile's AABB. [(x, y, z)]
-        public fixed float bmax[3]; ///< The maximum bounds of the tile's AABB. [(x, y, z)]
+        public int detailTriCount;
 
+        /// The number of triangles in the detail mesh.
+        public int bvNodeCount;
+
+        /// The number of bounding volume nodes. (Zero if bounding volumes are disabled.)
+        public int offMeshConCount;
+
+        /// The number of off-mesh connections.
+        public int offMeshBase;
+
+        /// The index of the first polygon which is an off-mesh connection.
+        public float walkableHeight;
+
+        /// The height of the agents using the tile.
+        public float walkableRadius;
+
+        /// The radius of the agents using the tile.
+        public float walkableClimb;
+
+        /// The maximum climb height of the agents using the tile.
+        public fixed float bmin[3];
+
+        /// The minimum bounds of the tile's AABB. [(x, y, z)]
+        public fixed float bmax[3];
+
+        /// The maximum bounds of the tile's AABB. [(x, y, z)]
         /// The bounding volume quantization factor. 
         public float bvQuantFactor;
     }
@@ -206,15 +270,27 @@ namespace RecastSharp
     /// @ingroup detour
     public unsafe struct dtMeshTile
     {
-        public uint salt; ///< Counter describing modifications to the tile.
+        public uint salt;
 
-        public uint linksFreeList; ///< Index to the next free link.
-        public dtMeshHeader* header; ///< The tile header.
-        public dtPoly* polys; ///< The tile polygons. [Size: dtMeshHeader::polyCount]
-        public float* verts; ///< The tile vertices. [(x, y, z) * dtMeshHeader::vertCount]
-        public dtLink* links; ///< The tile links. [Size: dtMeshHeader::maxLinkCount]
-        public dtPolyDetail* detailMeshes; ///< The tile's detail sub-meshes. [Size: dtMeshHeader::detailMeshCount]
+        /// Counter describing modifications to the tile.
+        public uint linksFreeList;
 
+        /// Index to the next free link.
+        public dtMeshHeader* header;
+
+        /// The tile header.
+        public dtPoly* polys;
+
+        /// The tile polygons. [Size: dtMeshHeader::polyCount]
+        public float* verts;
+
+        /// The tile vertices. [(x, y, z) * dtMeshHeader::vertCount]
+        public dtLink* links;
+
+        /// The tile links. [Size: dtMeshHeader::maxLinkCount]
+        public dtPolyDetail* detailMeshes;
+
+        /// The tile's detail sub-meshes. [Size: dtMeshHeader::detailMeshCount]
         /// The detail mesh's unique vertices. [(x, y, z) * dtMeshHeader::detailVertCount]
         public float* detailVerts;
 
@@ -226,12 +302,19 @@ namespace RecastSharp
         /// (Will be null if bounding volumes are disabled.)
         public dtBVNode* bvTree;
 
-        public dtOffMeshConnection* offMeshCons; ///< The tile off-mesh connections. [Size: dtMeshHeader::offMeshConCount]
+        public dtOffMeshConnection* offMeshCons;
 
-        public byte* data; ///< The tile data. (Not directly accessed under normal situations.)
-        public int dataSize; ///< Size of the tile data.
-        public int flags; ///< Tile flags. (See: #dtTileFlags)
-        public dtMeshTile* next; ///< The next free tile, or the next tile in the spatial grid.
+        /// The tile off-mesh connections. [Size: dtMeshHeader::offMeshConCount]
+        public byte* data;
+
+        /// The tile data. (Not directly accessed under normal situations.)
+        public int dataSize;
+
+        /// Size of the tile data.
+        public int flags;
+
+        /// Tile flags. (See: #dtTileFlags)
+        public dtMeshTile* next; /// The next free tile, or the next tile in the spatial grid.
     }
 
     /// Configuration parameters used to define multi-tile navigation meshes.
@@ -240,18 +323,26 @@ namespace RecastSharp
     /// @ingroup detour
     public unsafe struct dtNavMeshParams
     {
-        public fixed float orig[3]; ///< The world space origin of the navigation mesh's tile space. [(x, y, z)]
-        public float tileWidth; ///< The width of each tile. (Along the x-axis.)
-        public float tileHeight; ///< The height of each tile. (Along the z-axis.)
-        public int maxTiles; ///< The maximum number of tiles the navigation mesh can contain. This and maxPolys are used to calculate how many bits are needed to identify tiles and polygons uniquely.
-        public int maxPolys; ///< The maximum number of polygons each tile can contain. This and maxTiles are used to calculate how many bits are needed to identify tiles and polygons uniquely.
+        public fixed float orig[3];
+
+        /// The world space origin of the navigation mesh's tile space. [(x, y, z)]
+        public float tileWidth;
+
+        /// The width of each tile. (Along the x-axis.)
+        public float tileHeight;
+
+        /// The height of each tile. (Along the z-axis.)
+        public int maxTiles;
+
+        /// The maximum number of tiles the navigation mesh can contain. This and maxPolys are used to calculate how many bits are needed to identify tiles and polygons uniquely.
+        public int
+            maxPolys; /// The maximum number of polygons each tile can contain. This and maxTiles are used to calculate how many bits are needed to identify tiles and polygons uniquely.
     }
 
     /// A navigation mesh based on tiles of convex polygons.
     /// @ingroup detour
     public unsafe class dtNavMesh : System.IDisposable
     {
-
         //////////////////////////////////////////////////////////////////////////////////////////
 
         /**
@@ -283,7 +374,6 @@ namespace RecastSharp
         
         @see dtNavMeshQuery, dtCreateNavMeshData, dtNavMeshCreateParams, #dtAllocNavMesh, #dtFreeNavMesh
         */
-
         public dtNavMesh()
         {
             this.m_tileWidth = 0F;
@@ -295,7 +385,7 @@ namespace RecastSharp
             m_orig[0] = 0F;
             m_orig[1] = 0F;
             m_orig[2] = 0F;
-            
+
             m_saltBits = 0;
             m_tileBits = 0;
             m_polyBits = 0;
@@ -327,22 +417,25 @@ namespace RecastSharp
                     m_tiles[i].dataSize = 0;
                 }
             }
+
             dtFree(m_posLookup);
             dtFree(m_tiles);
 
             _disposed = true;
         }
 
-        
+
         /// Returns the minimum of two values.
         ///  @param[in]		a	Value A
         ///  @param[in]		b	Value B
         ///  @return The minimum of the two values.
-        uint dtMin(uint a, uint b) { return a < b ? a : b; }
+        uint dtMin(uint a, uint b)
+        {
+            return a < b ? a : b;
+        }
 
-        
+
         /// @name Initialization and Tile Management
-
         /// Initializes the navigation mesh for tiled use.
         ///  @param[in]    params        Initialization parameters.
         /// @return The status flags for the operation.
@@ -419,7 +512,6 @@ namespace RecastSharp
         }
 
         /// The navigation mesh initialization params.
-
         /// @par
         ///
         /// @note The parameters are created automatically when the single tile
@@ -436,7 +528,6 @@ namespace RecastSharp
         ///  @param[in]        lastRef        The desired reference for the tile. (When reloading a tile.) [opt] [Default: 0]
         ///  @param[out]    result        The tile reference. (If the tile was succesfully added.) [opt]
         /// @return The status flags for the operation.
-
         /// @par
         ///
         /// The add operation will fail if the data is in the wrong format, the allocated tile
@@ -461,9 +552,9 @@ namespace RecastSharp
                 return DT_FAILURE | DT_WRONG_MAGIC;
             if (header->version != DT_NAVMESH_VERSION)
                 return DT_FAILURE | DT_WRONG_VERSION;
-            
+
             if (m_polyBits < dtIlog2((int)dtNextPow2((uint)header->polyCount)))
-            return DT_FAILURE | DT_INVALID_PARAM;
+                return DT_FAILURE | DT_INVALID_PARAM;
 
             // Make sure the location is free.
             if (getTileAt(header->x, header->y, header->layer) != null)
@@ -495,6 +586,7 @@ namespace RecastSharp
                     prev = tile;
                     tile = tile->next;
                 }
+
                 // Could not find the correct location.
                 if (tile != target)
                     return DT_FAILURE | DT_OUT_OF_MEMORY;
@@ -601,7 +693,6 @@ namespace RecastSharp
         ///  @param[out]    data        Data associated with deleted tile.
         ///  @param[out]    dataSize    Size of the data associated with deleted tile.
         /// @return The status flags for the operation.
-
         /// @par
         ///
         /// This function returns the data for the tile so that, if desired,
@@ -636,6 +727,7 @@ namespace RecastSharp
                         m_posLookup[h] = cur->next;
                     break;
                 }
+
                 prev = cur;
                 cur = cur->next;
             }
@@ -693,8 +785,8 @@ namespace RecastSharp
 
             // Update salt, salt should never be zero.
             // tile->salt = (tile->salt + 1) & ((1 << (int)DT_SALT_BITS) - 1);
-            tile->salt = (uint)((tile->salt+1) & ((1<<(int)m_saltBits)-1));
-            
+            tile->salt = (uint)((tile->salt + 1) & ((1 << (int)m_saltBits) - 1));
+
             if (tile->salt == 0)
                 tile->salt++;
 
@@ -707,7 +799,6 @@ namespace RecastSharp
 
         ///
         /// @name Query Functions
-
         /// Calculates the tile grid location for the specified world position.
         ///  @param[in]    pos  The world position for the query. [(x, y, z)]
         ///  @param[out]    tx        The tile's x-location. (x, y)
@@ -737,8 +828,10 @@ namespace RecastSharp
                 {
                     return tile;
                 }
+
                 tile = tile->next;
             }
+
             return null;
         }
 
@@ -764,6 +857,7 @@ namespace RecastSharp
                     if (n < maxTiles)
                         tiles[n++] = tile;
                 }
+
                 tile = tile->next;
             }
 
@@ -789,8 +883,10 @@ namespace RecastSharp
                 {
                     return getTileRef(tile);
                 }
+
                 tile = tile->next;
             }
+
             return 0;
         }
 
@@ -863,7 +959,6 @@ namespace RecastSharp
         ///  @param[in]        ref        A known valid reference for a polygon.
         ///  @param[out]    tile    The tile containing the polygon.
         ///  @param[out]    poly    The polygon.
-
         /// @par
         ///
         /// @warning Only use this function if it is known that the provided polygon
@@ -898,7 +993,6 @@ namespace RecastSharp
         /// Gets the polygon reference for the tile's base polygon.
         ///  @param[in]    tile        The tile.
         /// @return The polygon reference for the base polygon in the specified tile.
-
         /// @par
         ///
         /// Example use case:
@@ -926,7 +1020,6 @@ namespace RecastSharp
         ///  @param[out]    startPos    The start position of the off-mesh connection. [(x, y, z)]
         ///  @param[out]    endPos        The end position of the off-mesh connection. [(x, y, z)]
         /// @return The status flags for the operation.
-
         /// @par
         ///
         /// Off-mesh connections are stored in the navigation mesh as special 2-vertex 
@@ -934,7 +1027,8 @@ namespace RecastSharp
         /// inside a normal polygon. So an off-mesh connection is "entered" from a 
         /// normal polygon at one of its endpoints. This is the polygon identified by 
         /// the prevRef parameter.
-        public dtStatus getOffMeshConnectionPolyEndPoints(dtPolyRef prevRef, dtPolyRef polyRef, float* startPos, float* endPos)
+        public dtStatus getOffMeshConnectionPolyEndPoints(dtPolyRef prevRef, dtPolyRef polyRef, float* startPos,
+            float* endPos)
         {
             uint salt = 0;
             uint it = 0;
@@ -969,6 +1063,7 @@ namespace RecastSharp
                         idx0 = 1;
                         idx1 = 0;
                     }
+
                     break;
                 }
             }
@@ -1009,7 +1104,6 @@ namespace RecastSharp
 
         /// @name State Management
         /// These functions do not effect #dtTileRef or #dtPolyRef's. 
-
         /// Sets the user defined flags for the specified polygon.
         ///  @param[in]    ref        The polygon reference.
         ///  @param[in]    flags    The new flags for the polygon.
@@ -1060,7 +1154,7 @@ namespace RecastSharp
         /// Sets the user defined area for the specified polygon.
         ///  @param[in]    ref        The polygon reference.
         ///  @param[in]    area    The new area id for the polygon. [Limit: < #DT_MAX_AREAS]
-        /// @return The status flags for the operation.
+        ///  @return The status flags for the operation.
         public dtStatus setPolyArea(dtPolyRef @ref, byte area)
         {
             if (@ref == 0) return DT_FAILURE;
@@ -1106,7 +1200,6 @@ namespace RecastSharp
         /// Gets the size of the buffer required by #storeTileState to store the specified tile's state.
         ///  @param[in]    tile    The tile.
         /// @return The size of the buffer required to store the state.
-
         ///  @see #storeTileState
         public int getTileStateSize(dtMeshTile* tile)
         {
@@ -1121,7 +1214,6 @@ namespace RecastSharp
         ///  @param[out]    data            The buffer to store the tile's state in.
         ///  @param[in]        maxDataSize        The size of the data buffer. [Limit: >= #getTileStateSize]
         /// @return The status flags for the operation.
-
         /// @par
         ///
         /// Tile state includes non-structural data such as polygon flags, area ids, etc.
@@ -1134,8 +1226,10 @@ namespace RecastSharp
             if (maxDataSize < sizeReq)
                 return DT_FAILURE | DT_BUFFER_TOO_SMALL;
 
-            dtTileState* tileState = dtGetThenAdvanceBufferPointer<dtTileState>(ref data, dtAlign4(sizeof(dtTileState)));
-            dtPolyState* polyStates = dtGetThenAdvanceBufferPointer<dtPolyState>(ref data, dtAlign4(sizeof(dtPolyState) * tile->header->polyCount));
+            dtTileState* tileState =
+                dtGetThenAdvanceBufferPointer<dtTileState>(ref data, dtAlign4(sizeof(dtTileState)));
+            dtPolyState* polyStates = dtGetThenAdvanceBufferPointer<dtPolyState>(ref data,
+                dtAlign4(sizeof(dtPolyState) * tile->header->polyCount));
 
             // Store tile state.
             tileState->magic = DT_NAVMESH_STATE_MAGIC;
@@ -1159,7 +1253,6 @@ namespace RecastSharp
         ///  @param[in]    data            The new state. (Obtained from #storeTileState.)
         ///  @param[in]    maxDataSize        The size of the state within the data buffer.
         /// @return The status flags for the operation.
-
         /// @par
         ///
         /// Tile state includes non-structural data such as polygon flags, area ids, etc.
@@ -1172,8 +1265,10 @@ namespace RecastSharp
             if (maxDataSize < sizeReq)
                 return DT_FAILURE | DT_INVALID_PARAM;
 
-            dtTileState* tileState = dtGetThenAdvanceBufferPointer<dtTileState>(ref data, dtAlign4(sizeof(dtTileState)));
-            dtPolyState* polyStates = dtGetThenAdvanceBufferPointer<dtPolyState>(ref data, dtAlign4(sizeof(dtPolyState) * tile->header->polyCount));
+            dtTileState* tileState =
+                dtGetThenAdvanceBufferPointer<dtTileState>(ref data, dtAlign4(sizeof(dtTileState)));
+            dtPolyState* polyStates = dtGetThenAdvanceBufferPointer<dtPolyState>(ref data,
+                dtAlign4(sizeof(dtPolyState) * tile->header->polyCount));
 
             // Check that the restore is possible.
             if (tileState->magic != DT_NAVMESH_STATE_MAGIC)
@@ -1197,7 +1292,6 @@ namespace RecastSharp
 
         /// @name Encoding and Decoding
         /// These functions are generally meant for internal use only.
-
         /// Derives a standard polygon reference.
         ///  @note This function is generally meant for internal use only.
         ///  @param[in]    salt    The tile's salt value.
@@ -1205,7 +1299,8 @@ namespace RecastSharp
         ///  @param[in]    ip        The index of the polygon within the tile.
         public dtPolyRef encodePolyId(uint salt, uint it, uint ip)
         {
-            return ((dtPolyRef)salt << (int)(m_polyBits+m_tileBits)) | ((dtPolyRef)it << (int)m_polyBits) | (dtPolyRef)ip;
+            return ((dtPolyRef)salt << (int)(m_polyBits + m_tileBits)) | ((dtPolyRef)it << (int)m_polyBits) |
+                   (dtPolyRef)ip;
         }
 
         /// Decodes a standard polygon reference.
@@ -1224,11 +1319,11 @@ namespace RecastSharp
             // salt = (uint)((@ref >> (int)(DT_POLY_BITS + DT_TILE_BITS)) & saltMask);
             // it = (uint)((@ref >> (int)DT_POLY_BITS) & tileMask);
             // ip = (uint)(@ref & polyMask);
-            
-            dtPolyRef saltMask = ((dtPolyRef)1<<(int)m_saltBits)-1;
-            dtPolyRef tileMask = ((dtPolyRef)1<<(int)m_tileBits)-1;
-            dtPolyRef polyMask = ((dtPolyRef)1<<(int)m_polyBits)-1;
-            salt = (uint)((@ref >> (int)(m_polyBits+m_tileBits)) & saltMask);
+
+            dtPolyRef saltMask = ((dtPolyRef)1 << (int)m_saltBits) - 1;
+            dtPolyRef tileMask = ((dtPolyRef)1 << (int)m_tileBits) - 1;
+            dtPolyRef polyMask = ((dtPolyRef)1 << (int)m_polyBits) - 1;
+            salt = (uint)((@ref >> (int)(m_polyBits + m_tileBits)) & saltMask);
             it = (uint)((@ref >> (int)m_polyBits) & tileMask);
             ip = (uint)(@ref & polyMask);
         }
@@ -1242,8 +1337,8 @@ namespace RecastSharp
             // dtPolyRef saltMask = ((dtPolyRef)1 << (int)DT_SALT_BITS) - 1;
             // return (uint)((@ref >> (int)(DT_POLY_BITS + DT_TILE_BITS)) & saltMask);
             //
-            dtPolyRef saltMask = ((dtPolyRef)1<<(int)m_saltBits)-1;
-            return (uint)((@ref >> (int)(m_polyBits+m_tileBits)) & saltMask);
+            dtPolyRef saltMask = ((dtPolyRef)1 << (int)m_saltBits) - 1;
+            return (uint)((@ref >> (int)(m_polyBits + m_tileBits)) & saltMask);
         }
 
         /// Extracts the tile's index from the specified polygon reference.
@@ -1254,8 +1349,8 @@ namespace RecastSharp
         {
             // dtPolyRef tileMask = ((dtPolyRef)1 << (int)DetourCommon.DT_TILE_BITS) - 1;
             // return (uint)((@ref >> (int)DetourCommon.DT_POLY_BITS) & tileMask);
-            
-            dtPolyRef tileMask = ((dtPolyRef)1<<(int)m_tileBits)-1;
+
+            dtPolyRef tileMask = ((dtPolyRef)1 << (int)m_tileBits) - 1;
             return (uint)((@ref >> (int)m_polyBits) & tileMask);
         }
 
@@ -1267,8 +1362,8 @@ namespace RecastSharp
         {
             // dtPolyRef polyMask = ((dtPolyRef)1 << (int)DetourCommon.DT_POLY_BITS) - 1;
             // return (uint)(@ref & polyMask);
-            
-            dtPolyRef polyMask = ((dtPolyRef)1<<(int)m_polyBits)-1;
+
+            dtPolyRef polyMask = ((dtPolyRef)1 << (int)m_polyBits) - 1;
             return (uint)(@ref & polyMask);
         }
 
@@ -1307,12 +1402,15 @@ namespace RecastSharp
                     nx++;
                     ny--;
                     break;
-            };
+            }
+
+            ;
 
             return getTilesAt(nx, ny, tiles, maxTiles);
         }
 
-        private int findConnectingPolys(float* va, float* vb, dtMeshTile* tile, int side, dtPolyRef* con, float* conarea, int maxcon)
+        private int findConnectingPolys(float* va, float* vb, dtMeshTile* tile, int side, dtPolyRef* con,
+            float* conarea, int maxcon)
         {
             if (tile == null) return 0;
 
@@ -1359,9 +1457,11 @@ namespace RecastSharp
                         con[n] = @base | (uint)i;
                         n++;
                     }
+
                     break;
                 }
             }
+
             return n;
         }
 
@@ -1430,7 +1530,8 @@ namespace RecastSharp
                 dtPolyRef @ref = findNearestPolyInTile(tile, p, halfExtents, nearestPt);
                 if (@ref == 0) continue;
                 // findNearestPoly may return too optimistic results, further check to make sure.
-                if ((nearestPt[0] - p[0]) * (nearestPt[0] - p[0]) + (nearestPt[2] - p[2]) * (nearestPt[2] - p[2]) > (con->rad) * (con->rad))
+                if ((nearestPt[0] - p[0]) * (nearestPt[0] - p[0]) + (nearestPt[2] - p[2]) * (nearestPt[2] - p[2]) >
+                    (con->rad) * (con->rad))
                     continue;
                 // Make sure the location is on current mesh.
                 float* v = &tile->verts[poly->verts[0] * 3];
@@ -1568,7 +1669,8 @@ namespace RecastSharp
                 if (@ref == 0)
                     continue;
                 // findNearestPoly may return too optimistic results, further check to make sure.
-                if ((nearestPt[0] - p[0]) * (nearestPt[0] - p[0]) + (nearestPt[2] - p[2]) * (nearestPt[2] - p[2]) > (targetCon->rad) * (targetCon->rad))
+                if ((nearestPt[0] - p[0]) * (nearestPt[0] - p[0]) + (nearestPt[2] - p[2]) * (nearestPt[2] - p[2]) >
+                    (targetCon->rad) * (targetCon->rad))
                     continue;
                 // Make sure the location is on current mesh.
                 float* v = &target->verts[targetPoly->verts[1] * 3];
@@ -1607,7 +1709,6 @@ namespace RecastSharp
                     }
                 }
             }
-
         }
 
         /// Removes external links at specified side.
@@ -1724,12 +1825,14 @@ namespace RecastSharp
                         dtVmin(bmin, v);
                         dtVmax(bmax, v);
                     }
+
                     if (dtOverlapBounds(qmin, qmax, bmin, bmax))
                     {
                         if (n < maxPolys)
                             polys[n++] = @base | (uint)i;
                     }
                 }
+
                 return n;
             }
         }
@@ -1814,6 +1917,7 @@ namespace RecastSharp
                     else
                         v[k] = &tile->detailVerts[(pd->vertBase + (t[k] - poly->vertCount)) * 3];
                 }
+
                 float h = 0;
                 if (dtClosestHeightPointTriangle(pos, v[0], v[1], v[2], ref h))
                 {
@@ -1863,21 +1967,42 @@ namespace RecastSharp
             closestPointOnDetailEdges(true, tile, poly, pos, closest);
         }
 
-        private dtNavMeshParams m_params; ///< Current initialization params. TODO: do not store this info twice.
-        private float[] m_orig = new float[3]; ///< Origin of the tile (0,0)
-        private float m_tileWidth; ///< Dimensions of each tile.
-        private float m_tileHeight;
-        private int m_maxTiles; ///< Max number of tiles.
-        private int m_tileLutSize; ///< Tile hash lookup size (must be pot).
-        private int m_tileLutMask; ///< Tile hash lookup mask.
+        private dtNavMeshParams m_params;
 
-        private dtMeshTile** m_posLookup; ///< Tile hash lookup.
-        private dtMeshTile* m_nextFree; ///< Freelist of tiles.
-        private dtMeshTile* m_tiles; ///< List of tiles.
-                                     ///
-        uint m_saltBits;			///< Number of salt bits in the tile ID.
-        uint m_tileBits;			///< Number of tile bits in the tile ID.
-        uint m_polyBits;			///< Number of poly bits in the tile ID.
+        /// Current initialization params. TODO: do not store this info twice.
+        private float[] m_orig = new float[3];
+
+        /// Origin of the tile (0,0)
+        private float m_tileWidth;
+
+        /// Dimensions of each tile.
+        private float m_tileHeight;
+
+        private int m_maxTiles;
+
+        /// Max number of tiles.
+        private int m_tileLutSize;
+
+        /// Tile hash lookup size (must be pot).
+        private int m_tileLutMask;
+
+        /// Tile hash lookup mask.
+        private dtMeshTile** m_posLookup;
+
+        /// Tile hash lookup.
+        private dtMeshTile* m_nextFree;
+
+        /// Freelist of tiles.
+        private dtMeshTile* m_tiles;
+
+        /// List of tiles.
+        uint m_saltBits;
+
+        /// Number of salt bits in the tile ID.
+        uint m_tileBits;
+
+        /// Number of tile bits in the tile ID.
+        uint m_polyBits; /// Number of poly bits in the tile ID.
     }
 
     public struct dtTileState

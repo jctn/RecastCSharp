@@ -8,7 +8,7 @@ using System.Runtime.InteropServices;
 using size_t = System.Int32;
 using dtPolyRef = System.UInt32;
 using dtStatus = System.UInt32;
-
+// ReSharper disable All
 namespace RecastSharp
 {
     using static dtDetailTriEdgeFlags;

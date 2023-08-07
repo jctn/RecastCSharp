@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 
+// ReSharper disable All
 namespace RecastSharp
 {
     public static partial class Recast
@@ -36,7 +37,7 @@ namespace RecastSharp
                 pool.next = hf.pools;
                 hf.pools = pool;
                 // Add new items to the free list.
-                rcSpan? freelist = hf.freelist;
+                rcSpan freelist = hf.freelist;
                 //rcSpan head = pool.items[0];
                 //rcSpan it = pool.items[RC_SPANS_PER_POOL];
                 int itIndex = RC_SPANS_PER_POOL;

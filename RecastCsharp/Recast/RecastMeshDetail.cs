@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 
+// ReSharper disable All
 namespace RecastSharp
 {
     public static partial class Recast
@@ -14,7 +15,7 @@ namespace RecastSharp
             {
             }
 
-            public ushort[]? data = null;
+            public ushort[] data = null;
             public int xmin = 0;
             public int ymin = 0;
             public int width = 0;
@@ -77,7 +78,7 @@ namespace RecastSharp
         }
 
         public static bool circumCircle(float[] p1, float[] p2, float[] p3,
-                                float[] c, ref float r)
+            float[] c, ref float r)
         {
             const float EPS = 1e-6f;
 
@@ -100,7 +101,7 @@ namespace RecastSharp
         }
 
         public static bool circumCircle(float[] p1, int p1Start, float[] p2, int p2Start, float[] p3, int p3Start,
-                                float[] c, int cStart, ref float r)
+            float[] c, int cStart, ref float r)
         {
             const float EPS = 1e-6f;
 
@@ -110,8 +111,12 @@ namespace RecastSharp
                 float p1Sq = vdot2(p1, p1Start, p1, p1Start);
                 float p2Sq = vdot2(p2, p2Start, p2, p2Start);
                 float p3Sq = vdot2(p3, p3Start, p3, p3Start);
-                c[cStart + 0] = (p1Sq * (p2[p2Start + 2] - p3[p3Start + 2]) + p2Sq * (p3[p3Start + 2] - p1[p1Start + 2]) + p3Sq * (p1[p1Start + 2] - p2[p2Start + 2])) / (2 * cp);
-                c[cStart + 2] = (p1Sq * (p3[p3Start + 0] - p2[p2Start + 0]) + p2Sq * (p1[p1Start + 0] - p3[p3Start + 0]) + p3Sq * (p2[p2Start + 0] - p1[p1Start + 0])) / (2 * cp);
+                c[cStart + 0] = (p1Sq * (p2[p2Start + 2] - p3[p3Start + 2]) +
+                                 p2Sq * (p3[p3Start + 2] - p1[p1Start + 2]) +
+                                 p3Sq * (p1[p1Start + 2] - p2[p2Start + 2])) / (2 * cp);
+                c[cStart + 2] = (p1Sq * (p3[p3Start + 0] - p2[p2Start + 0]) +
+                                 p2Sq * (p1[p1Start + 0] - p3[p3Start + 0]) +
+                                 p3Sq * (p2[p2Start + 0] - p1[p1Start + 0])) / (2 * cp);
                 r = vdist2(c, cStart, p1, p1Start);
                 return true;
             }
@@ -149,9 +154,12 @@ namespace RecastSharp
                 float y = a[1] + v0[1] * u + v1[1] * v;
                 return Math.Abs(y - p[1]);
             }
+
             return float.MaxValue;
         }
-        static float distPtTri(float[] p, int pStart, float[] a, int aStart, float[] b, int bStart, float[] c, int cStart)
+
+        static float distPtTri(float[] p, int pStart, float[] a, int aStart, float[] b, int bStart, float[] c,
+            int cStart)
         {
             float[] v0 = new float[3];
             float[] v1 = new float[3];
@@ -178,6 +186,7 @@ namespace RecastSharp
                 float y = a[aStart + 1] + v0[1] * u + v1[1] * v;
                 return Math.Abs(y - p[pStart + 1]);
             }
+
             return float.MaxValue;
         }
 
@@ -205,6 +214,7 @@ namespace RecastSharp
 
             return dx * dx + dy * dy + dz * dz;
         }
+
         static float distancePtSeg(float[] pt, int ptStart, float[] p, int pStart, float[] q, int qStart)
         {
             float pqx = q[qStart + 0] - p[pStart + 0];
@@ -283,13 +293,13 @@ namespace RecastSharp
                 if (d < dmin)
                     dmin = d;
             }
+
             if (dmin == float.MaxValue) return -1;
             return dmin;
         }
 
         static float distToPoly(int nvert, float[] verts, float[] p)
         {
-
             float dmin = float.MaxValue;
             int i, j;
             bool c = false;
@@ -298,17 +308,19 @@ namespace RecastSharp
                 int viStart = i * 3;
                 int vjStart = j * 3;
                 if (((verts[viStart + 2] > p[2]) != (verts[vjStart + 2] > p[2])) &&
-                    (p[0] < (verts[vjStart + 0] - verts[viStart + 0]) * (p[2] - verts[viStart + 2]) / (verts[vjStart + 2] - verts[viStart + 2]) + verts[viStart + 0]))
+                    (p[0] < (verts[vjStart + 0] - verts[viStart + 0]) * (p[2] - verts[viStart + 2]) /
+                        (verts[vjStart + 2] - verts[viStart + 2]) + verts[viStart + 0]))
                     c = !c;
                 dmin = Math.Min(dmin, distancePtSeg2d(p, 0, verts, vjStart, verts, viStart));
             }
+
             return c ? -dmin : dmin;
         }
 
 
         static ushort getHeight(float fx, float fy, float fz,
-                                        float cs, float ics, float ch,
-                                        int radius, rcHeightPatch hp)
+            float cs, float ics, float ch,
+            int radius, rcHeightPatch hp)
         {
             int ix = (int)Math.Floor(fx * ics + 0.01f);
             int iz = (int)Math.Floor(fz * ics + 0.01f);
@@ -378,10 +390,12 @@ namespace RecastSharp
                         dx = -dz;
                         dz = tmp;
                     }
+
                     x += dx;
                     z += dz;
                 }
             }
+
             return h;
         }
 
@@ -398,11 +412,13 @@ namespace RecastSharp
             {
                 //int[] e = &edges[i*4];
                 int eIndex = i * 4;
-                if ((edges[eIndex + 0] == s && edges[eIndex + 1] == t) || (edges[eIndex + 0] == t && edges[eIndex + 1] == s))
+                if ((edges[eIndex + 0] == s && edges[eIndex + 1] == t) ||
+                    (edges[eIndex + 0] == t && edges[eIndex + 1] == s))
                 {
                     return i;
                 }
             }
+
             return EdgeValues.UNDEF;
         }
 
@@ -412,11 +428,13 @@ namespace RecastSharp
             {
                 //int[] e = &edges[i*4];
                 int eIndex = i * 4;
-                if ((edges[eIndex + 0] == s && edges[eIndex + 1] == t) || (edges[eIndex + 0] == t && edges[eIndex + 1] == s))
+                if ((edges[eIndex + 0] == s && edges[eIndex + 1] == t) ||
+                    (edges[eIndex + 0] == t && edges[eIndex + 1] == s))
                 {
                     return i;
                 }
             }
+
             return EdgeValues.UNDEF;
         }
 
@@ -424,7 +442,8 @@ namespace RecastSharp
         {
             if (nedges >= maxEdges)
             {
-                ctx.log(rcLogCategory.RC_LOG_ERROR, "addEdge (list version): Too many edges (" + nedges + "/" + maxEdges + ").");
+                ctx.log(rcLogCategory.RC_LOG_ERROR,
+                    "addEdge (list version): Too many edges (" + nedges + "/" + maxEdges + ").");
                 return EdgeValues.UNDEF;
             }
 
@@ -475,6 +494,7 @@ namespace RecastSharp
                 return EdgeValues.UNDEF;
             }
         }
+
         static void updateLeftFace(List<int> e, int eStart, int s, int t, int f)
         {
             if (e[eStart + 0] == s && e[eStart + 1] == t && e[eStart + 2] == EdgeValues.UNDEF)
@@ -512,10 +532,12 @@ namespace RecastSharp
                     return 1;
                 }
             }
+
             return 0;
         }
 
-        static int overlapSegSeg2d(float[] a, int aStart, float[] b, int bStart, float[] c, int cStart, float[] d, int dStart)
+        static int overlapSegSeg2d(float[] a, int aStart, float[] b, int bStart, float[] c, int cStart, float[] d,
+            int dStart)
         {
             float a1 = vcross2(a, aStart, b, bStart, d, dStart);
             float a2 = vcross2(a, aStart, b, bStart, c, cStart);
@@ -528,6 +550,7 @@ namespace RecastSharp
                     return 1;
                 }
             }
+
             return 0;
         }
 
@@ -543,15 +566,18 @@ namespace RecastSharp
                 {
                     continue;
                 }
+
                 if (overlapSegSeg2d(pts, s0 * 3, pts, t0 * 3, pts, s1 * 3, pts, t1 * 3) != 0)
                 {
                     return true;
                 }
             }
+
             return false;
         }
 
-        static void completeFacet(rcContext ctx, float[] pts, int npts, List<int> edges, ref int nedges, int maxEdges, ref int nfaces, int e)
+        static void completeFacet(rcContext ctx, float[] pts, int npts, List<int> edges, ref int nedges, int maxEdges,
+            ref int nfaces, int e)
         {
             const float EPS = 1e-5f;
 
@@ -586,6 +612,7 @@ namespace RecastSharp
                 {
                     continue;
                 }
+
                 if (vcross2(pts, s * 3, pts, t * 3, pts, u * 3) > EPS)
                 {
                     if (r < 0)
@@ -595,6 +622,7 @@ namespace RecastSharp
                         circumCircle(pts, s * 3, pts, t * 3, pts, u * 3, c, 0, ref r);
                         continue;
                     }
+
                     float d = vdist2(c, 0, pts, u * 3);
                     float tol = 0.001f;
                     if (d > r * (1 + tol))
@@ -652,8 +680,8 @@ namespace RecastSharp
         }
 
         static void delaunayHull(rcContext ctx, int npts, float[] pts,
-                                int nhull, int[] hull,
-                                List<int> tris, List<int> edges)
+            int nhull, int[] hull,
+            List<int> tris, List<int> edges)
         {
             int nfaces = 0;
             int nedges = 0;
@@ -673,10 +701,12 @@ namespace RecastSharp
                 {
                     completeFacet(ctx, pts, npts, edges, ref nedges, maxEdges, ref nfaces, currentEdge);
                 }
+
                 if (edges[currentEdge * 4 + 3] == EdgeValues.UNDEF)
                 {
                     completeFacet(ctx, pts, npts, edges, ref nedges, maxEdges, ref nfaces, currentEdge);
                 }
+
                 currentEdge++;
             }
 
@@ -709,6 +739,7 @@ namespace RecastSharp
                     else if (tris[tIndex + 1] == edges[edgeIndex + 0])
                         tris[tIndex + 2] = edges[edgeIndex + 1];
                 }
+
                 if (edges[edgeIndex + 2] >= 0)
                 {
                     // Right
@@ -732,7 +763,9 @@ namespace RecastSharp
                 int tIndex = i * 4;
                 if (tris[tIndex + 0] == -1 || tris[tIndex + 1] == -1 || tris[tIndex + 2] == -1)
                 {
-                    ctx.log(rcLogCategory.RC_LOG_WARNING, "delaunayHull: Removing dangling face " + i + " [" + tris[tIndex + 0] + "," + tris[tIndex + 1] + "," + tris[tIndex + 2] + "].");
+                    ctx.log(rcLogCategory.RC_LOG_WARNING,
+                        "delaunayHull: Removing dangling face " + i + " [" + tris[tIndex + 0] + "," + tris[tIndex + 1] +
+                        "," + tris[tIndex + 2] + "].");
                     tris[tIndex + 0] = tris[tris.Count - 4];
                     tris[tIndex + 1] = tris[tris.Count - 3];
                     tris[tIndex + 2] = tris[tris.Count - 2];
@@ -748,7 +781,6 @@ namespace RecastSharp
         // Calculate minimum extend of the polygon.
         static float polyMinExtent(float[] verts, int nverts)
         {
-
             float minDist = float.MaxValue;
             for (int i = 0; i < nverts; i++)
             {
@@ -762,8 +794,10 @@ namespace RecastSharp
                     float d = distancePtSeg2d(verts, j * 3, verts, p1Index, verts, p2Index);
                     maxEdgeDist = Math.Max(maxEdgeDist, d);
                 }
+
                 minDist = Math.Min(minDist, maxEdgeDist);
             }
+
             return (float)Math.Sqrt(minDist);
         }
 
@@ -781,7 +815,8 @@ namespace RecastSharp
                 int pvIndex = hull[pi] * 3;
                 int cvIndex = hull[i] * 3;
                 int nvIndex = hull[ni] * 3;
-                float d = vdist2(verts, pvIndex, verts, cvIndex) + vdist2(verts, cvIndex, verts, nvIndex) + vdist2(verts, nvIndex, verts, pvIndex);
+                float d = vdist2(verts, pvIndex, verts, cvIndex) + vdist2(verts, cvIndex, verts, nvIndex) +
+                          vdist2(verts, nvIndex, verts, pvIndex);
                 if (d < dmin)
                 {
                     start = i;
@@ -811,8 +846,10 @@ namespace RecastSharp
                 int nvleftIndex = hull[nleft] * 3;
                 int cvrightIndex = hull[right] * 3;
                 int nvrightIndex = hull[nright] * 3;
-                float dleft = vdist2(verts, cvleftIndex, verts, nvleftIndex) + vdist2(verts, nvleftIndex, verts, cvrightIndex);
-                float dright = vdist2(verts, cvrightIndex, verts, nvrightIndex) + vdist2(verts, cvleftIndex, verts, nvrightIndex);
+                float dleft = vdist2(verts, cvleftIndex, verts, nvleftIndex) +
+                              vdist2(verts, nvleftIndex, verts, cvrightIndex);
+                float dright = vdist2(verts, cvrightIndex, verts, nvrightIndex) +
+                               vdist2(verts, cvleftIndex, verts, nvrightIndex);
 
                 if (dleft < dright)
                 {
@@ -844,13 +881,13 @@ namespace RecastSharp
         }
 
         static bool buildPolyDetail(rcContext ctx, float[] _in, int nin,
-                                    float sampleDist, float sampleMaxError,
-                                    int heightSearchRadius, rcCompactHeightfield chf,
-                                    rcHeightPatch hp, float[] verts, ref int nverts,
-                                    List<int> tris, List<int> edges, List<int> samples)
+            float sampleDist, float sampleMaxError,
+            int heightSearchRadius, rcCompactHeightfield chf,
+            rcHeightPatch hp, float[] verts, ref int nverts,
+            List<int> tris, List<int> edges, List<int> samples)
         {
             const int MAX_VERTS = 127;
-            const int MAX_TRIS = 255;   // Max tris for delaunay is 2n-2-k (n=num verts, k=num hull verts).
+            const int MAX_TRIS = 255; // Max tris for delaunay is 2n-2-k (n=num verts, k=num hull verts).
             const int MAX_VERTS_PER_EDGE = 32;
             float[] edge = new float[(MAX_VERTS_PER_EDGE + 1) * 3];
             int[] hull = new int[MAX_VERTS];
@@ -902,16 +939,18 @@ namespace RecastSharp
                             swapped = true;
                         }
                     }
+
                     // Create samples along the edge.
-                    float dx = _in[viStart] - _in[vjStart];//vi[0] - vj[0];
-                    float dy = _in[viStart + 1] - _in[vjStart + 1];//vi[1] - vj[1];
-                    float dz = _in[viStart + 2] - _in[vjStart + 2];//vi[2] - vj[2];
+                    float dx = _in[viStart] - _in[vjStart]; //vi[0] - vj[0];
+                    float dy = _in[viStart + 1] - _in[vjStart + 1]; //vi[1] - vj[1];
+                    float dz = _in[viStart + 2] - _in[vjStart + 2]; //vi[2] - vj[2];
                     float d = (float)Math.Sqrt(dx * dx + dz * dz);
                     int nn = 1 + (int)Math.Floor(d / sampleDist);
                     if (nn >= MAX_VERTS_PER_EDGE)
                     {
                         nn = MAX_VERTS_PER_EDGE - 1;
                     }
+
                     if (nverts + nn >= MAX_VERTS)
                     {
                         nn = MAX_VERTS - 1 - nverts;
@@ -925,10 +964,12 @@ namespace RecastSharp
                         edge[posStart + 0] = _in[vjStart + 0] + dx * u;
                         edge[posStart + 1] = _in[vjStart + 1] + dy * u;
                         edge[posStart + 2] = _in[vjStart + 2] + dz * u;
-                        edge[posStart + 1] = getHeight(edge[posStart + 0], edge[posStart + 1], edge[posStart + 2], cs, ics, chf.ch, heightSearchRadius, hp) * chf.ch;
+                        edge[posStart + 1] = getHeight(edge[posStart + 0], edge[posStart + 1], edge[posStart + 2], cs,
+                            ics, chf.ch, heightSearchRadius, hp) * chf.ch;
                     }
+
                     // Simplify samples.
-                    int[] idx = new int[MAX_VERTS_PER_EDGE];// {0,nn};
+                    int[] idx = new int[MAX_VERTS_PER_EDGE]; // {0,nn};
                     idx[1] = nn;
                     int nidx = 2;
                     for (int k = 0; k < nidx - 1;)
@@ -952,6 +993,7 @@ namespace RecastSharp
                                 maxi = m;
                             }
                         }
+
                         // If the max deviation is larger than accepted error,
                         // add new point, else continue to next segment.
                         if (maxi != -1 && maxd > sampleMaxError * sampleMaxError)
@@ -1004,7 +1046,8 @@ namespace RecastSharp
             if (tris.Count == 0)
             {
                 // Could not triangulate the poly, make sure there is some valid data there.
-                ctx.log(rcLogCategory.RC_LOG_WARNING, "buildPolyDetail: Could not triangulate polygon, adding default data.");
+                ctx.log(rcLogCategory.RC_LOG_WARNING,
+                    "buildPolyDetail: Could not triangulate polygon, adding default data.");
                 return true;
             }
 
@@ -1020,6 +1063,7 @@ namespace RecastSharp
                     rcVmin(bmin, 0, _in, i * 3);
                     rcVmax(bmax, 0, _in, i * 3);
                 }
+
                 int x0 = (int)Math.Floor(bmin[0] / sampleDist);
                 int x1 = (int)Math.Ceiling(bmax[0] / sampleDist);
                 int z0 = (int)Math.Floor(bmin[2] / sampleDist);
@@ -1039,6 +1083,7 @@ namespace RecastSharp
                         {
                             continue;
                         }
+
                         samples.Add(x);
                         samples.Add(getHeight(pt[0], pt[1], pt[2], cs, ics, chf.ch, heightSearchRadius, hp));
                         samples.Add(z);
@@ -1083,6 +1128,7 @@ namespace RecastSharp
                             rcVcopy(bestpt, pt);
                         }
                     }
+
                     // If the max error is within accepted threshold, stop tesselating.
                     if (bestd <= sampleMaxError || besti == -1)
                         break;
@@ -1107,7 +1153,8 @@ namespace RecastSharp
             {
                 //tris.resize(MAX_TRIS*4);
                 tris.RemoveRange(MAX_TRIS * 4, tris.Count - MAX_TRIS * 4);
-                ctx.log(rcLogCategory.RC_LOG_ERROR, "rcBuildPolyMeshDetail: Shrinking triangle count from " + ntris + " to max " + MAX_TRIS + ".");
+                ctx.log(rcLogCategory.RC_LOG_ERROR,
+                    "rcBuildPolyMeshDetail: Shrinking triangle count from " + ntris + " to max " + MAX_TRIS + ".");
             }
 
             return true;
@@ -1115,16 +1162,16 @@ namespace RecastSharp
 
 
         static void seedArrayWithPolyCenter(rcCompactHeightfield chf,
-                                ushort[] poly, int polyStart, int npoly,
-                                ushort[] verts, int bs,
-                                rcHeightPatch hp, List<int> stack)
+            ushort[] poly, int polyStart, int npoly,
+            ushort[] verts, int bs,
+            rcHeightPatch hp, List<int> stack)
         {
             // Note: Reads to the compact heightfield are offset by border size (bs)
             // since border size offset is already removed from the polymesh vertices.
 
             int[] offset = new int[9 * 2]
             {
-                0,0, -1,-1, 0,-1, 1,-1, 1,0, 1,1, 0,1, -1,1, -1,0,
+                0, 0, -1, -1, 0, -1, 1, -1, 1, 0, 1, 1, 0, 1, -1, 1, -1, 0,
             };
 
             // Find cell closest to a poly vertex
@@ -1164,6 +1211,7 @@ namespace RecastSharp
                 pcx += (int)verts[poly[polyStart + j] * 3 + 0];
                 pcy += (int)verts[poly[polyStart + j] * 3 + 2];
             }
+
             pcx /= npoly;
             pcy /= npoly;
 
@@ -1256,12 +1304,11 @@ namespace RecastSharp
         }
 
 
-
         static void getHeightData(rcCompactHeightfield chf,
-                                ushort[] poly, int polyStart, int npoly,
-                                ushort[] verts, int bs,
-                                rcHeightPatch hp, List<int> stack,
-                                int region)
+            ushort[] poly, int polyStart, int npoly,
+            ushort[] verts, int bs,
+            rcHeightPatch hp, List<int> stack,
+            int region)
         {
             // Note: Reads to the compact heightfield are offset by border size (bs)
             // since border size offset is already removed from the polymesh vertices.
@@ -1273,6 +1320,7 @@ namespace RecastSharp
             {
                 hp.data[i] = 0xffff;
             }
+
             bool empty = true;
 
             // We cannot sample from this poly if it was created from polys
@@ -1316,12 +1364,14 @@ namespace RecastSharp
                                         }
                                     }
                                 }
+
                                 if (border)
                                 {
                                     stack.Add(x);
                                     stack.Add(y);
                                     stack.Add(i);
                                 }
+
                                 break;
                             }
                         }
@@ -1356,6 +1406,7 @@ namespace RecastSharp
                             stack[i] = stack[RETRACT_SIZE * 3 + i];
                         }
                     }
+
                     //stack.resize(stack.Count-RETRACT_SIZE*3);
                     int newSize = stack.Count - RETRACT_SIZE * 3;
                     Debug.Assert(newSize >= 0, "Resizing under zero");
@@ -1392,7 +1443,7 @@ namespace RecastSharp
         }
 
         static byte getEdgeFlags(float[] va, float[] vb,
-                                        float[] vpoly, int npoly)
+            float[] vpoly, int npoly)
         {
             // Return true if edge (va,vb) is part of the polygon.
             float thrSqr = 0.001f * 0.001f;
@@ -1402,10 +1453,12 @@ namespace RecastSharp
                     distancePtSeg2d(vb, 0, vpoly, j * 3, vpoly, i * 3) < thrSqr)
                     return 1;
             }
+
             return 0;
         }
+
         static byte getEdgeFlags(float[] va, int vaStart, float[] vb, int vbStart,
-                                        float[] vpoly, int vpolyStart, int npoly)
+            float[] vpoly, int vpolyStart, int npoly)
         {
             // Return true if edge (va,vb) is part of the polygon.
             float thrSqr = 0.001f * 0.001f;
@@ -1415,11 +1468,12 @@ namespace RecastSharp
                     distancePtSeg2d(vb, vbStart, vpoly, vpolyStart + j * 3, vpoly, vpolyStart + i * 3) < thrSqr)
                     return 1;
             }
+
             return 0;
         }
 
         static byte getTriFlags(float[] va, float[] vb, float[] vc,
-                                        float[] vpoly, int npoly)
+            float[] vpoly, int npoly)
         {
             byte flags = 0;
             flags |= (byte)(getEdgeFlags(va, vb, vpoly, npoly) << 0);
@@ -1427,8 +1481,9 @@ namespace RecastSharp
             flags |= (byte)(getEdgeFlags(vc, va, vpoly, npoly) << 4);
             return flags;
         }
+
         static byte getTriFlags(float[] va, int vaStart, float[] vb, int vbStart, float[] vc, int vcStart,
-                                        float[] vpoly, int vpolyStart, int npoly)
+            float[] vpoly, int vpolyStart, int npoly)
         {
             byte flags = 0;
             flags |= (byte)(getEdgeFlags(va, vaStart, vb, vbStart, vpoly, vpolyStart, npoly) << 0);
@@ -1459,14 +1514,15 @@ namespace RecastSharp
                 list.RemoveRange(length, list.Count - length);
             }
         }
+
         /// @par
         ///
         /// See the #rcConfig documentation for more information on the configuration parameters.
         ///
         /// @see rcAllocPolyMeshDetail, rcPolyMesh, rcCompactHeightfield, rcPolyMeshDetail, rcConfig
         public static bool rcBuildPolyMeshDetail(rcContext ctx, rcPolyMesh mesh, rcCompactHeightfield chf,
-                                float sampleDist, float sampleMaxError,
-                                rcPolyMeshDetail dmesh)
+            float sampleDist, float sampleMaxError,
+            rcPolyMeshDetail dmesh)
         {
             Debug.Assert(ctx != null, "rcContext is null");
 
@@ -1498,7 +1554,8 @@ namespace RecastSharp
             int[] bounds = new int[mesh.npolys * 4];
             if (bounds == null)
             {
-                ctx.log(rcLogCategory.RC_LOG_ERROR, "rcBuildPolyMeshDetail: Out of memory 'bounds' (" + mesh.npolys * 4 + ").");
+                ctx.log(rcLogCategory.RC_LOG_ERROR,
+                    "rcBuildPolyMeshDetail: Out of memory 'bounds' (" + mesh.npolys * 4 + ").");
                 return false;
             }
 
@@ -1538,6 +1595,7 @@ namespace RecastSharp
                     bounds[ymax] = Math.Max(bounds[ymax], (int)mesh.verts[vIndex + 2]);
                     nPolyVerts++;
                 }
+
                 bounds[xmin] = Math.Max(0, bounds[xmin] - 1);
                 bounds[xmax] = Math.Min(chf.width, bounds[xmax] + 1);
                 bounds[ymin] = Math.Max(0, bounds[ymin] - 1);
@@ -1551,7 +1609,8 @@ namespace RecastSharp
             hp.data = new ushort[maxhh * maxhw];
             if (hp.data == null)
             {
-                ctx.log(rcLogCategory.RC_LOG_ERROR, "rcBuildPolyMeshDetail: Out of memory 'hp.data' (" + maxhw * maxhh + ").");
+                ctx.log(rcLogCategory.RC_LOG_ERROR,
+                    "rcBuildPolyMeshDetail: Out of memory 'hp.data' (" + maxhw * maxhh + ").");
                 return false;
             }
 
@@ -1562,7 +1621,8 @@ namespace RecastSharp
             dmesh.meshes = new uint[dmesh.nmeshes * 4];
             if (dmesh.meshes == null)
             {
-                ctx.log(rcLogCategory.RC_LOG_ERROR, "rcBuildPolyMeshDetail: Out of memory 'dmesh.meshes' (" + dmesh.nmeshes * 4 + ").");
+                ctx.log(rcLogCategory.RC_LOG_ERROR,
+                    "rcBuildPolyMeshDetail: Out of memory 'dmesh.meshes' (" + dmesh.nmeshes * 4 + ").");
                 return false;
             }
 
@@ -1574,15 +1634,18 @@ namespace RecastSharp
             dmesh.verts = new float[vcap * 3];
             if (dmesh.verts == null)
             {
-                ctx.log(rcLogCategory.RC_LOG_ERROR, "rcBuildPolyMeshDetail: Out of memory 'dmesh.verts' (" + vcap * 3 + ").");
+                ctx.log(rcLogCategory.RC_LOG_ERROR,
+                    "rcBuildPolyMeshDetail: Out of memory 'dmesh.verts' (" + vcap * 3 + ").");
                 return false;
             }
+
             dmesh.ntris = 0;
             //dmesh.tris = (byte*)rcAlloc(sizeof(byte*)*tcap*4, RC_ALLOC_PERM);
             dmesh.tris = new byte[tcap * 4];
             if (dmesh.tris == null)
             {
-                ctx.log(rcLogCategory.RC_LOG_ERROR, "rcBuildPolyMeshDetail: Out of memory 'dmesh.tris' (" + tcap * 4 + ").");
+                ctx.log(rcLogCategory.RC_LOG_ERROR,
+                    "rcBuildPolyMeshDetail: Out of memory 'dmesh.tris' (" + tcap * 4 + ").");
                 return false;
             }
 
@@ -1615,10 +1678,10 @@ namespace RecastSharp
                 // Build detail mesh.
                 int nverts = 0;
                 if (!buildPolyDetail(ctx, poly, npoly,
-                                    sampleDist, sampleMaxError,
-                                    heightSearchRadius, chf, hp,
-                                    verts, ref nverts, tris,
-                                    edges, samples))
+                        sampleDist, sampleMaxError,
+                        heightSearchRadius, chf, hp,
+                        verts, ref nverts, tris,
+                        edges, samples))
                 {
                     return false;
                 }
@@ -1630,6 +1693,7 @@ namespace RecastSharp
                     verts[j * 3 + 1] += orig[1] + chf.ch; // Is this offset necessary?
                     verts[j * 3 + 2] += orig[2];
                 }
+
                 // Offset poly too, will be used to flag checking.
                 for (int j = 0; j < npoly; ++j)
                 {
@@ -1658,9 +1722,11 @@ namespace RecastSharp
                     float[] newv = new float[vcap * 3];
                     if (newv == null)
                     {
-                        ctx.log(rcLogCategory.RC_LOG_ERROR, "rcBuildPolyMeshDetail: Out of memory 'newv' (" + vcap * 3 + ").");
+                        ctx.log(rcLogCategory.RC_LOG_ERROR,
+                            "rcBuildPolyMeshDetail: Out of memory 'newv' (" + vcap * 3 + ").");
                         return false;
                     }
+
                     if (dmesh.nverts != 0)
                     {
                         //memcpy(newv, dmesh.verts, sizeof(float)*3*dmesh.nverts);
@@ -1669,9 +1735,11 @@ namespace RecastSharp
                             newv[j] = dmesh.verts[j];
                         }
                     }
+
                     //dmesh.verts = null;
                     dmesh.verts = newv;
                 }
+
                 for (int j = 0; j < nverts; ++j)
                 {
                     dmesh.verts[dmesh.nverts * 3 + 0] = verts[j * 3 + 0];
@@ -1687,13 +1755,16 @@ namespace RecastSharp
                     {
                         tcap += 256;
                     }
+
                     //byte* newt = (byte*)rcAlloc(sizeof(byte)*tcap*4, RC_ALLOC_PERM);
                     byte[] newt = new byte[tcap * 4];
                     if (newt == null)
                     {
-                        ctx.log(rcLogCategory.RC_LOG_ERROR, "rcBuildPolyMeshDetail: Out of memory 'newt' (" + tcap * 4 + ").");
+                        ctx.log(rcLogCategory.RC_LOG_ERROR,
+                            "rcBuildPolyMeshDetail: Out of memory 'newt' (" + tcap * 4 + ").");
                         return false;
                     }
+
                     if (dmesh.ntris != 0)
                     {
                         //memcpy(newt, dmesh.tris, sizeof(byte)*4*dmesh.ntris);
@@ -1702,8 +1773,10 @@ namespace RecastSharp
                             newt[j] = dmesh.tris[j];
                         }
                     }
+
                     dmesh.tris = newt;
                 }
+
                 for (int j = 0; j < ntris; ++j)
                 {
                     //const int* t = &tris[j*4];
@@ -1711,7 +1784,8 @@ namespace RecastSharp
                     dmesh.tris[dmesh.ntris * 4 + 0] = (byte)tris[tIndex + 0];
                     dmesh.tris[dmesh.ntris * 4 + 1] = (byte)tris[tIndex + 1];
                     dmesh.tris[dmesh.ntris * 4 + 2] = (byte)tris[tIndex + 2];
-                    dmesh.tris[dmesh.ntris * 4 + 3] = getTriFlags(verts, tris[tIndex + 0] * 3, verts, tris[tIndex + 1] * 3, verts, tris[tIndex + 2] * 3, poly, 0, npoly);
+                    dmesh.tris[dmesh.ntris * 4 + 3] = getTriFlags(verts, tris[tIndex + 0] * 3, verts,
+                        tris[tIndex + 1] * 3, verts, tris[tIndex + 2] * 3, poly, 0, npoly);
                     dmesh.ntris++;
                 }
             }
@@ -1722,7 +1796,8 @@ namespace RecastSharp
         }
 
         /// @see rcAllocPolyMeshDetail, rcPolyMeshDetail
-        public static bool rcMergePolyMeshDetails(rcContext ctx, rcPolyMeshDetail[] meshes, int nmeshes, rcPolyMeshDetail mesh)
+        public static bool rcMergePolyMeshDetails(rcContext ctx, rcPolyMeshDetail[] meshes, int nmeshes,
+            rcPolyMeshDetail mesh)
         {
             Debug.Assert(ctx != null, "rcContext is null");
 
@@ -1738,6 +1813,7 @@ namespace RecastSharp
                 {
                     continue;
                 }
+
                 maxVerts += meshes[i].nverts;
                 maxTris += meshes[i].ntris;
                 maxMeshes += meshes[i].nmeshes;
@@ -1748,7 +1824,8 @@ namespace RecastSharp
             mesh.meshes = new uint[maxMeshes * 4];
             if (mesh.meshes == null)
             {
-                ctx.log(rcLogCategory.RC_LOG_ERROR, "rcBuildPolyMeshDetail: Out of memory 'pmdtl.meshes' (" + maxMeshes * 4 + ").");
+                ctx.log(rcLogCategory.RC_LOG_ERROR,
+                    "rcBuildPolyMeshDetail: Out of memory 'pmdtl.meshes' (" + maxMeshes * 4 + ").");
                 return false;
             }
 
@@ -1757,7 +1834,8 @@ namespace RecastSharp
             mesh.tris = new byte[maxTris * 4];
             if (mesh.tris == null)
             {
-                ctx.log(rcLogCategory.RC_LOG_ERROR, "rcBuildPolyMeshDetail: Out of memory 'dmesh.tris' (" + maxTris * 4 + ").");
+                ctx.log(rcLogCategory.RC_LOG_ERROR,
+                    "rcBuildPolyMeshDetail: Out of memory 'dmesh.tris' (" + maxTris * 4 + ").");
                 return false;
             }
 
@@ -1766,7 +1844,8 @@ namespace RecastSharp
             mesh.verts = new float[maxVerts * 3];
             if (mesh.verts == null)
             {
-                ctx.log(rcLogCategory.RC_LOG_ERROR, "rcBuildPolyMeshDetail: Out of memory 'dmesh.verts' (" + maxVerts * 3 + ").");
+                ctx.log(rcLogCategory.RC_LOG_ERROR,
+                    "rcBuildPolyMeshDetail: Out of memory 'dmesh.verts' (" + maxVerts * 3 + ").");
                 return false;
             }
 
@@ -1778,6 +1857,7 @@ namespace RecastSharp
                 {
                     continue;
                 }
+
                 for (int j = 0; j < dm.nmeshes; ++j)
                 {
                     //uint* dst = &mesh.meshes[mesh.nmeshes*4];
@@ -1796,6 +1876,7 @@ namespace RecastSharp
                     rcVcopy(mesh.verts, mesh.nverts * 3, dm.verts!, k * 3);
                     mesh.nverts++;
                 }
+
                 for (int k = 0; k < dm.ntris; ++k)
                 {
                     mesh.tris[mesh.ntris * 4 + 0] = dm.tris![k * 4 + 0];
