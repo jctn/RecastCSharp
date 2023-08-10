@@ -9,7 +9,6 @@ using UnityEngine;
 using UnityEngine.AI;
 using UnityEngine.Pool;
 using UnityEngine.Rendering;
-using UnityEngine.SceneManagement;
 using UnityEngine.Serialization;
 
 namespace RecastSharp
@@ -60,12 +59,6 @@ namespace RecastSharp
 
         [FoldoutGroup("通用参数")] [LabelText("地图ID")]
         public int mapID = 10000;
-
-        [FoldoutGroup("通用参数")] [LabelText("原点偏移(x轴)")]
-        public float offsetX = 0;
-
-        [FoldoutGroup("通用参数")] [LabelText("原点偏移(z轴)")]
-        public float offsetZ = 0;
 
         [FoldoutGroup("通用参数")] [LabelText("地图可行走区域width(X轴)")] [Range(0, 5000)]
         public int xSize = 500;
@@ -120,11 +113,8 @@ namespace RecastSharp
         [LabelText("Filter Walkable Low Height Spans"), Tooltip("上下体素之间空隙高度小于walkHeight，下体素变为不可行走")]
         public bool cvFilterWalkableLowHeightSpans = true;
 
-        [FoldoutGroup("Collider Voxel/优化")] [LabelText("合并封闭空间体素")]
-        public bool cvMergeClosedSpaceVoxel;
-
         [FoldoutGroup("Collider Voxel/优化")] [LabelText("地图中必定可到达的坐标点(世界坐标)")]
-        public Vector2Int cvWalkablePoint;
+        public Vector3Int cvWalkablePoint;
 
         [FoldoutGroup("Collider Voxel")] [LabelText("体素数据分块范围(单位米)")]
         public ushort cvRegionSize = 64;
@@ -204,10 +194,10 @@ namespace RecastSharp
             _colliderVoxelTool.filterLowHangingObstacles = cvFilterLowHangingObstacles;
             _colliderVoxelTool.filterLedgeSpans = cvFilterLedgeSpans;
             _colliderVoxelTool.filterWalkableLowHeightSpans = cvFilterWalkableLowHeightSpans;
-            _colliderVoxelTool.mergeClosedSpaceVoxel = cvMergeClosedSpaceVoxel;
             //这里的walkablePoint是世界坐标，需要转换成体素坐标
-            _colliderVoxelTool.walkablePoint = new Vector2Int(Mathf.FloorToInt(cvWalkablePoint.x / cvVoxelSize),
-                Mathf.FloorToInt(cvWalkablePoint.y / cvVoxelSize));
+            _colliderVoxelTool.walkablePoint = new Vector3Int(Mathf.FloorToInt(cvWalkablePoint.x / cvVoxelSize),
+                Mathf.FloorToInt(cvWalkablePoint.y / cvVoxelHeight),
+                Mathf.FloorToInt(cvWalkablePoint.z / cvVoxelSize));
 
             cvMaxCell.Set(Mathf.CeilToInt(xSize / cvVoxelSize) - 1,
                 Mathf.CeilToInt(ySize / cvVoxelHeight) - 1,
@@ -447,160 +437,6 @@ namespace RecastSharp
             AssetDatabase.Refresh();
         }
 
-        // [FoldoutGroup("Collider Voxel/导出")]
-        // [Button("导出服务端碰撞体素数据(旧)"), ResponsiveButtonGroup("Collider Voxel/导出/Server")]
-        // public void ExportServerDataTmp()
-        // {
-        //     GC.Collect();
-        //     if (_colliderVoxelTool is not { buildVoxelSuccess: true })
-        //     {
-        //         Debug.LogError("[VoxelViewer:SaveServerBytes] build voxel success first.");
-        //         return;
-        //     }
-        //
-        //     //生成服务端二进制数据
-        //     ExportServerByteFile();
-        //     //生成服务端二进制对比文本数据（按照二进制的写入顺序来写入txt）
-        //     ExportServerByteCompareTxt();
-        //     GC.Collect();
-        //     AssetDatabase.Refresh();
-        // }
-        //
-        // private void ExportServerByteFile()
-        // {
-        //     if (!Directory.Exists(csServerDataPath))
-        //     {
-        //         Directory.CreateDirectory(csServerDataPath);
-        //     }
-        //
-        //     string filePath = Path.Combine(csServerDataPath, $"conf_scene_mask_{mapID}_old.bytes");
-        //     if (File.Exists(filePath))
-        //     {
-        //         File.Delete(filePath);
-        //     }
-        //
-        //     using (var writer = new BinaryWriter(File.Open(filePath, FileMode.OpenOrCreate)))
-        //     {
-        //         writer.Write(cvMaxCell.x);
-        //         writer.Write(cvMaxCell.y);
-        //         writer.Write(cvMaxCell.z);
-        //         int totalSpansNum = _colliderVoxelTool.GetTotalSpanCount();
-        //         int zero = 0;
-        //
-        //         uint dataIndex = 0;
-        //         writer.Write(totalSpansNum);
-        //         for (int z = 0; z <= cvMaxCell.z; z++)
-        //         {
-        //             for (int x = 0; x <= cvMaxCell.x; x++)
-        //             {
-        //                 uint spanNum = _colliderVoxelTool.GetSpans(x, z, SpanBuffer,
-        //                     SpanBufferSize);
-        //                 writer.Write((byte)spanNum);
-        //                 if (spanNum > 0)
-        //                 {
-        //                     writer.Write(dataIndex);
-        //                     dataIndex += spanNum;
-        //                 }
-        //                 else
-        //                 {
-        //                     writer.Write(zero);
-        //                 }
-        //             }
-        //         }
-        //
-        //         for (int z = 0; z <= cvMaxCell.z; z++)
-        //         {
-        //             for (int x = 0; x <= cvMaxCell.x; x++)
-        //             {
-        //                 uint spanNum = _colliderVoxelTool.GetSpans(x, z, SpanBuffer,
-        //                     SpanBufferSize);
-        //                 if (spanNum == 0) continue;
-        //                 for (int i = 0; i < spanNum; i++)
-        //                 {
-        //                     // ushort min = SpanBuffer[i * VoxelTool.SpanElementNum];
-        //                     // ushort max = SpanBuffer[i * VoxelTool.SpanElementNum + 1];
-        //                     // ushort mask = SpanBuffer[i * VoxelTool.SpanElementNum + 2];
-        //                     //临时处理
-        //                     ushort min = SpanBuffer[i * VoxelTool.SpanElementNum + 1];
-        //                     ushort max = (ushort)cvMaxCell.y;
-        //                     ushort mask = 1;
-        //                     ulong result = ((ulong)min << 48) | ((ulong)max << 32) | ((ulong)mask << 24);
-        //                     writer.Write(result);
-        //                 }
-        //             }
-        //         }
-        //     }
-        //
-        //     Debug.LogFormat("[VoxelViewer:SaveServerBytes] save data to {0} successfully.", filePath);
-        // }
-        //
-        // private void ExportServerByteCompareTxt()
-        // {
-        //     string fileDirPath = Path.Combine(cvDebugDataPath, $"{mapID}");
-        //
-        //     if (!Directory.Exists(fileDirPath))
-        //     {
-        //         Directory.CreateDirectory(fileDirPath);
-        //     }
-        //
-        //     string filePath = Path.Combine(fileDirPath, "ByteCompareTxtOld.txt");
-        //     if (File.Exists(filePath))
-        //     {
-        //         File.Delete(filePath);
-        //     }
-        //
-        //     using (StreamWriter writer = new StreamWriter(filePath, false, Encoding.UTF8))
-        //     {
-        //         writer.WriteLine($"x:{cvMaxCell.x}");
-        //         writer.WriteLine($"y:{cvMaxCell.y}");
-        //         writer.WriteLine($"z:{cvMaxCell.z}");
-        //         int totalSpansNum = _colliderVoxelTool.GetTotalSpanCount();
-        //         uint dataIndex = 0;
-        //         writer.WriteLine($"totalSpansNum:{totalSpansNum}");
-        //         for (int z = 0; z <= cvMaxCell.z; z++)
-        //         {
-        //             for (int x = 0; x <= cvMaxCell.x; x++)
-        //             {
-        //                 uint spanNum = _colliderVoxelTool.GetSpans(x, z, SpanBuffer,
-        //                     SpanBufferSize);
-        //                 if (spanNum > 0)
-        //                 {
-        //                     writer.WriteLine($"x:{x},z:{z},spanNum:{spanNum},index:{dataIndex}");
-        //                     dataIndex += spanNum;
-        //                 }
-        //                 else
-        //                 {
-        //                     writer.WriteLine($"x:{x},z:{z},spanNum:0,index:0");
-        //                 }
-        //             }
-        //         }
-        //
-        //         int index = 0;
-        //         for (int z = 0; z <= cvMaxCell.z; z++)
-        //         {
-        //             for (int x = 0; x <= cvMaxCell.x; x++)
-        //             {
-        //                 uint spanNum = _colliderVoxelTool.GetSpans(x, z, SpanBuffer, SpanBufferSize);
-        //                 if (spanNum == 0) continue;
-        //                 for (int i = 0; i < spanNum; i++)
-        //                 {
-        //                     // ushort min = SpanBuffer[i * VoxelTool.SpanElementNum];
-        //                     // ushort max = SpanBuffer[i * VoxelTool.SpanElementNum + 1];
-        //                     // ushort mask = SpanBuffer[i * VoxelTool.SpanElementNum + 2];
-        //                     //临时处理
-        //                     ushort min = SpanBuffer[i * VoxelTool.SpanElementNum + 1];
-        //                     ushort max = (ushort)cvMaxCell.y;
-        //                     ushort mask = 1;
-        //                     ulong result = ((ulong)min << 48) | ((ulong)max << 32) | ((ulong)mask << 24);
-        //                     writer.WriteLine($"index:{index++},result:{result},min:{min},max:{max}");
-        //                 }
-        //             }
-        //         }
-        //     }
-        //
-        //     Debug.LogFormat("[VoxelViewer:ExportServerByteCompareTxt] save data to {0} successfully.", filePath);
-        // }
-
 
         [FoldoutGroup("Collider Voxel/提交")]
         [Button("提交")]
@@ -610,6 +446,488 @@ namespace RecastSharp
             ShellUtils.CommitSvn(csServerDataPath);
             ShellUtils.CommitSvn(cvDebugDataPath);
         }
+
+        #region 碰撞体素调试
+
+        [FoldoutGroup("Collider Voxel/调试")]
+        [Button("解析后端碰撞体素二进制数据")]
+        public void LoadServerBytes2Txt(int loadMapId)
+        {
+            string filePath = Path.Combine(csServerDataPath, $"conf_scene_mask_{loadMapId}.bytes");
+
+            if (!File.Exists(filePath))
+            {
+                Debug.LogErrorFormat("{0} 文件不存在，无法解析，请确定输入的mapID以及是否已经导出二进制数据", filePath);
+                return;
+            }
+
+            string fileDirPath = Path.Combine(cvDebugDataPath, $"{loadMapId}");
+
+            if (!Directory.Exists(fileDirPath))
+            {
+                Directory.CreateDirectory(fileDirPath);
+            }
+
+            string serverBytes2TxtFile = Path.Combine(fileDirPath, "ServerBytesLoad.txt");
+            if (File.Exists(serverBytes2TxtFile))
+            {
+                File.Delete(serverBytes2TxtFile);
+            }
+
+            using (var reader = new BinaryReader(File.Open(filePath, FileMode.Open)))
+            {
+                using (StreamWriter writer = new StreamWriter(serverBytes2TxtFile, false, Encoding.UTF8))
+                {
+                    int maxX = reader.ReadInt32();
+                    int maxY = reader.ReadInt32();
+                    int maxZ = reader.ReadInt32();
+                    int totalSpanNum = reader.ReadInt32();
+                    writer.WriteLine($"x:{maxX}");
+                    writer.WriteLine($"y:{maxY}");
+                    writer.WriteLine($"z:{maxZ}");
+                    writer.WriteLine($"totalSpansNum:{totalSpanNum}");
+                    for (int x = 0; x <= maxX; x++)
+                    {
+                        for (int z = 0; z <= maxZ; z++)
+                        {
+                            writer.WriteLine($"x:{x},z:{z},spanNum:{reader.ReadByte()},index:{reader.ReadInt32()}");
+                        }
+                    }
+
+                    for (int i = 0; i < totalSpanNum; i++)
+                    {
+                        ulong result = reader.ReadUInt64();
+                        int tmpMin = (int)(result >> 48) & 0xffff;
+                        int tmpMax = (int)(result >> 32) & 0xffff;
+                        int tmpMask = (int)(result >> 24) & 0xff;
+                        writer.WriteLine($"index:{i},result:{result},min:{tmpMin},max;{tmpMax},mask:{tmpMask}");
+                    }
+                }
+            }
+
+            Debug.LogFormat("[VoxelViewer:LoadServerBytes2Txt] save data to {0} successfully.", serverBytes2TxtFile);
+
+            GC.Collect();
+            AssetDatabase.Refresh();
+        }
+
+        #endregion
+
+        #endregion
+
+
+        #region NavMesh
+
+        private VoxelTool _navMeshTool;
+
+        [FoldoutGroup("Nav Mesh")] [LabelText("NavMesh体素大小(长宽)")] [Range(0.01f, 5.0f)]
+        public float nmVoxelSize = 0.15f;
+
+        [FoldoutGroup("Nav Mesh")] [LabelText("NavMesh体素高度")] [Range(0.01f, 5.0f)]
+        public float nmVoxelHeight = 0.01f;
+
+        [FoldoutGroup("Nav Mesh")] [LabelText("NavMesh体素格子范围"), ReadOnly]
+        public Vector3Int nmMaxCell = Vector3Int.zero;
+
+        [FoldoutGroup("Nav Mesh")] [LabelText("Agent Height")] [Range(0.0f, 10.0f)]
+        public float nmAgentHeight = 1.0f;
+
+        [FoldoutGroup("Nav Mesh")] [LabelText("Agent Radius")] [Range(0.0f, 10.0f)]
+        public float nmAgentRadius = 0.5f;
+
+        [FoldoutGroup("Nav Mesh")] [LabelText("Climb Height")] [Range(0.0f, 999.0f)]
+        public float nmClimbHeight = 0.5f;
+
+        [FoldoutGroup("Nav Mesh")] [LabelText("Max Slope")] [Range(0.0f, 60.0f)]
+        public float nmMaxSlope = 60.0f;
+
+        [FoldoutGroup("Nav Mesh/过滤")]
+        [LabelText("Filter Low Hanging Obstacles"), Tooltip("体素上表面之差小于walkClimb,上面的体素变为可行走,过滤悬空的可走障碍物")]
+        public bool nmFilterLowHangingObstacles = true;
+
+        [FoldoutGroup("Nav Mesh/过滤")] [LabelText("Filter Ledge Spans"), Tooltip("体素与邻居体素上表面之差超过这个高度，则变为不可走")]
+        public bool nmFilterLedgeSpans;
+
+        [FoldoutGroup("Nav Mesh/过滤")]
+        [LabelText("Filter Walkable Low Height Spans"), Tooltip("上下体素之间空隙高度小于walkHeight，下体素变为不可行走")]
+        public bool nmFilterWalkableLowHeightSpans = true;
+
+
+        [FoldoutGroup("Nav Mesh/优化")] [LabelText("地图中必定可到达的坐标点(世界坐标)")]
+        public Vector3Int nmWalkablePoint;
+
+        [FoldoutGroup("Nav Mesh/优化/Debug")] [LabelText("是否开启检查合并封闭空间体素")]
+        public bool nmOpenCheckDebug;
+
+        [FoldoutGroup("Nav Mesh/优化/Debug")] [LabelText("检查合并封闭空间体素的范围")]
+        public Vector2Int nmCheckSpanValue;
+
+        private GameObject _voxelTopMeshObj;
+        private Material _voxelTopMeshMat;
+        private Material _navMeshMat;
+
+        private void CreateVoxelTopMeshObj()
+        {
+            if (_voxelTopMeshObj == null)
+            {
+                GameObject obj = GameObject.Find(VOXEL_TOP_MESH);
+                if (obj != null)
+                {
+                    DestroyImmediate(obj);
+                }
+
+                _voxelTopMeshObj = new GameObject(VOXEL_TOP_MESH);
+                GameObjectUtility.SetStaticEditorFlags(_voxelTopMeshObj, StaticEditorFlags.NavigationStatic);
+                GameObjectUtility.SetNavMeshArea(_voxelTopMeshObj, NavMesh.GetAreaFromName("Walkable"));
+            }
+
+            int childCount = _voxelTopMeshObj.transform.childCount;
+
+            for (int i = childCount - 1; i >= 0; i--)
+            {
+                Transform child = _voxelTopMeshObj.transform.GetChild(i);
+                DestroyImmediate(child.gameObject);
+            }
+        }
+
+        private Material voxelTopMeshMat
+        {
+            get
+            {
+                if (_voxelTopMeshMat == null)
+                {
+                    _voxelTopMeshMat =
+                        AssetDatabase.LoadAssetAtPath<Material>("Packages/com.nemo.game.editor/Res/Voxel/NavMesh.mat");
+                }
+
+                return _voxelTopMeshMat;
+            }
+        }
+
+        private Material navMeshMat
+        {
+            get
+            {
+                if (_navMeshMat == null)
+                {
+                    _navMeshMat =
+                        AssetDatabase.LoadAssetAtPath<Material>("Packages/com.nemo.game.editor/Res/Voxel/PolyMesh.mat");
+                }
+
+                return _navMeshMat;
+            }
+        }
+
+
+        [FoldoutGroup("Nav Mesh")]
+        [Button("构建体素上表面网格(用于烘焙NavMesh)")]
+        public void BuildVoxelTopMesh(bool buildMesh = true)
+        {
+            GC.Collect();
+            _navMeshTool ??= new VoxelTool();
+
+            //
+            // Step 1. Initialize build config.
+            //
+            _navMeshTool.Reset();
+            _navMeshTool.SetBuildConfig(nmVoxelSize, nmVoxelHeight, nmAgentHeight, nmClimbHeight, nmAgentRadius,
+                nmMaxSlope);
+            _navMeshTool.SetBoundBox(0, 0, 0, 0 + xSize, ySize, 0 + zSize);
+
+            _navMeshTool.filterLowHangingObstacles = nmFilterLowHangingObstacles;
+            _navMeshTool.filterLedgeSpans = nmFilterLedgeSpans;
+            _navMeshTool.filterWalkableLowHeightSpans = nmFilterWalkableLowHeightSpans;
+            //这里的walkablePoint是世界坐标，需要转换成体素坐标
+            _navMeshTool.walkablePoint = new Vector3Int(Mathf.FloorToInt(nmWalkablePoint.x / nmVoxelSize),
+                Mathf.FloorToInt(nmWalkablePoint.y / nmVoxelHeight),
+                Mathf.FloorToInt(nmWalkablePoint.z / nmVoxelSize));
+            _navMeshTool.needDebugMergeClosedSpace = nmOpenCheckDebug;
+            _navMeshTool.checkMergeAntiSpanMin = nmCheckSpanValue.x;
+            _navMeshTool.checkMergeAntiSpanMax = nmCheckSpanValue.y;
+
+            nmMaxCell.Set(Mathf.CeilToInt(xSize / nmVoxelSize) - 1,
+                Mathf.CeilToInt(ySize / nmVoxelHeight) - 1,
+                Mathf.CeilToInt(zSize / nmVoxelSize) - 1);
+
+
+            // 1. 生成NavMesh对应的体素数据
+            // 收集Mesh数据
+            if (collectMeshInfos == null || collectMeshInfos.Count == 0)
+            {
+                EditorUtility.DisplayDialog("错误", "CollectMeshInfos为空，请设置正确的列表数据", "关闭");
+                return;
+            }
+
+            foreach (var info in collectMeshInfos)
+            {
+                if (info.target == null)
+                    continue;
+                CollectSceneMesh(info.target, info.hasLod, _navMeshTool);
+            }
+
+            // 2. 构建体素
+            if (_navMeshTool.BuildVoxel())
+            {
+                int cellX = -1, cellZ = -1;
+                uint maxSpanNum = 0;
+                uint totalSpanNum = 0;
+                for (int z = 0; z <= nmMaxCell.z; ++z)
+                {
+                    for (int x = 0; x <= nmMaxCell.x; ++x)
+                    {
+                        uint spanNum = _navMeshTool.GetSpans(x, z, SpanBuffer, SpanBufferSize);
+                        if (spanNum == 0)
+                            continue;
+                        if (spanNum > maxSpanNum)
+                        {
+                            maxSpanNum = spanNum;
+                            cellX = x;
+                            cellZ = z;
+                        }
+
+                        totalSpanNum += spanNum;
+                    }
+                }
+
+                Debug.LogFormat("Build Voxel Success. MaxSpanNumInCell: {0} x: {1} z: {2},totalSpan:{3}", maxSpanNum,
+                    cellX,
+                    cellZ, totalSpanNum);
+                //3. 构建体素上表面网格
+                if (buildMesh)
+                {
+                    CreateVoxelTopMeshObj();
+                    Mesh[] meshes = BuildVoxelTopMeshArray(totalSpanNum);
+                    for (int i = 0; i < meshes.Length; i++)
+                    {
+                        Mesh mesh = meshes[i];
+                        GameObject meshObj = new GameObject(mesh.name)
+                        {
+                            layer = LayerMask.NameToLayer(NAV_MESH_BAKE_LAYER_NAME)
+                        };
+                        MeshFilter filter = meshObj.AddComponent<MeshFilter>();
+                        filter.mesh = mesh;
+                        MeshRenderer meshRenderer = meshObj.AddComponent<MeshRenderer>();
+                        Material[] materials = new Material[mesh.subMeshCount];
+                        Array.Fill(materials, voxelTopMeshMat);
+                        meshRenderer.materials = materials;
+                        meshObj.transform.SetParent(_voxelTopMeshObj.transform);
+                        GameObjectUtility.SetStaticEditorFlags(meshObj, StaticEditorFlags.NavigationStatic);
+                    }
+                }
+            }
+            else
+            {
+                Debug.LogError("[Build NavMesh] Build Voxel Failed.");
+            }
+
+            GC.Collect();
+        }
+
+        /// <summary>
+        /// 收集已生成体素的上表面，构造对应的Mesh
+        /// </summary>
+        private Mesh[] BuildVoxelTopMeshArray(uint totalSpanNum)
+        {
+            int totalTriangleNum = (int)totalSpanNum * 6;
+            int meshMaxSubMeshNum = 500;
+            int subMeshCount = Mathf.CeilToInt((float)totalTriangleNum / MAX_VERTICES_PER_SUB_MESH); //总共有多少个submesh
+            int meshCount = Mathf.CeilToInt((float)subMeshCount / meshMaxSubMeshNum); //创建多少个Mesh Obj
+            int eachMeshMaxSpan =
+                Mathf.FloorToInt(meshMaxSubMeshNum * MAX_VERTICES_PER_SUB_MESH / 6.0f); //每个Mesh Obj最多又多少个Span
+            Mesh[] meshes = new Mesh[meshCount];
+            Vector3[] vertices = new Vector3[eachMeshMaxSpan * 4];
+            int[] triangles = new int[eachMeshMaxSpan * 6];
+            int vertexNum = 0;
+            int triangleNum = 0;
+            int spanIndex = 0;
+            int allSpanIndex = 0;
+            int meshIndex = 0;
+            for (int z = 0; z <= nmMaxCell.z; ++z)
+            {
+                for (int x = 0; x <= nmMaxCell.x; ++x)
+                {
+                    uint spanNum = _navMeshTool.GetSpans(x, z, SpanBuffer, SpanBufferSize);
+                    if (spanNum == 0) continue;
+                    for (int i = 0; i < spanNum; i++)
+                    {
+                        ushort top = SpanBuffer[i * VoxelTool.SpanElementNum + 1];
+                        // point0
+                        Vector3 v0 = new Vector3((x + 0) * nmVoxelSize, top * nmVoxelHeight, (z + 0) * nmVoxelSize);
+                        vertices[vertexNum] = v0;
+                        // point1
+                        Vector3 v1 = new Vector3((x + 1) * nmVoxelSize, top * nmVoxelHeight, (z + 1) * nmVoxelSize);
+                        vertices[vertexNum + 1] = v1;
+                        // point2
+                        Vector3 v2 = new Vector3((x + 1) * nmVoxelSize, top * nmVoxelHeight, (z + 0) * nmVoxelSize);
+                        vertices[vertexNum + 2] = v2;
+                        // point3
+                        Vector3 v3 = new Vector3((x + 0) * nmVoxelSize, top * nmVoxelHeight, (z + 1) * nmVoxelSize);
+                        vertices[vertexNum + 3] = v3;
+
+                        triangles[triangleNum] = vertexNum + 0;
+                        triangles[triangleNum + 1] = vertexNum + 1;
+                        triangles[triangleNum + 2] = vertexNum + 2;
+                        triangles[triangleNum + 3] = vertexNum + 1;
+                        triangles[triangleNum + 4] = vertexNum + 0;
+                        triangles[triangleNum + 5] = vertexNum + 3;
+                        vertexNum += 4;
+                        triangleNum += 6;
+                        spanIndex++;
+                        allSpanIndex++;
+                        if (spanIndex == eachMeshMaxSpan || allSpanIndex == totalSpanNum)
+                        {
+                            meshes[meshIndex] = GenerateMesh($"VoxelTopMesh_{meshIndex}", vertices, triangles);
+                            vertexNum = 0;
+                            triangleNum = 0;
+                            spanIndex = 0;
+                            meshIndex++;
+                            Array.Fill(vertices, Vector3.zero);
+                            Array.Fill(triangles, 0);
+                        }
+                    }
+                }
+            }
+
+            return meshes;
+        }
+
+
+        private Mesh GenerateMesh(string meshName, Vector3[] vertices, int[] triangles)
+        {
+            int subMeshCount = Mathf.CeilToInt((float)triangles.Length / MAX_VERTICES_PER_SUB_MESH);
+            // 创建网格对象并设置顶点和三角形数据
+            Mesh mesh = new Mesh
+            {
+                name = meshName,
+                indexFormat = vertices.Length > 65536 ? IndexFormat.UInt32 : IndexFormat.UInt16,
+                subMeshCount = subMeshCount
+            };
+            mesh.SetVertices(vertices);
+            // 创建子网格
+            for (int i = 0; i < subMeshCount; i++)
+            {
+                // 计算当前子网格的索引范围
+                int startIndex = i * MAX_VERTICES_PER_SUB_MESH;
+                int endIndex = Mathf.Min((i + 1) * MAX_VERTICES_PER_SUB_MESH, triangles.Length);
+                int triangleCount = endIndex - startIndex;
+
+                // 创建子网格的索引数组
+                int[] subMeshIndices = new int[triangleCount];
+                Array.Copy(triangles, startIndex, subMeshIndices, 0, triangleCount);
+
+                // 设置子网格的索引
+                mesh.SetTriangles(subMeshIndices, i);
+            }
+
+            // 更新网格
+            MeshUtility.Optimize(mesh);
+            mesh.RecalculateBounds();
+            mesh.RecalculateNormals();
+            return mesh;
+        }
+
+
+        [FoldoutGroup("Nav Mesh")]
+        [Button("保存上表面网格")]
+        public void SaveVoxelTopMesh()
+        {
+            GC.Collect();
+            if (_voxelTopMeshObj == null)
+            {
+                return;
+            }
+
+            MeshFilter[] meshFilters = _voxelTopMeshObj.GetComponentsInChildren<MeshFilter>();
+            if (meshFilters == null || meshFilters.Length == 0)
+            {
+                return;
+            }
+
+            string path = Path.Combine(Application.dataPath, $"{mapID}", "VoxelTopMesh");
+            if (!Directory.Exists(path))
+            {
+                Directory.CreateDirectory(path);
+            }
+
+            foreach (MeshFilter meshFilter in meshFilters)
+            {
+                if (meshFilter.sharedMesh != null)
+                {
+                    string savePath = Path.Combine(path, $"{meshFilter.sharedMesh.name}.asset");
+                    savePath = FileUtil.GetProjectRelativePath(savePath);
+                    AssetDatabase.CreateAsset(meshFilter.sharedMesh, savePath);
+                    AssetDatabase.SaveAssets();
+                    Debug.Log("VoxelTopMesh saved at: " + savePath);
+                }
+            }
+
+            AssetDatabase.Refresh();
+        }
+
+        [FoldoutGroup("Nav Mesh")]
+        [Button("清除上表面网格")]
+        public void ClearVoxelTopMesh()
+        {
+            if (_voxelTopMeshObj != null)
+            {
+                DestroyImmediate(_voxelTopMeshObj);
+            }
+
+            _voxelTopMeshObj = null;
+        }
+
+        [FoldoutGroup("Nav Mesh")]
+        [Button("提取NavMesh烘焙对应网格")]
+        public void BuildNavMeshBakeMesh()
+        {
+            // 获取NavMesh数据
+            NavMeshTriangulation navMeshData = NavMesh.CalculateTriangulation();
+            if (navMeshData.indices.Length < 3)
+            {
+                Debug.LogError($"NavMeshExporter ExportScene Error - 场景里没有需要被导出的物体，请先用NavMesh进行Bake。");
+                return;
+            }
+
+            // 通过上述数据可以构建Mesh或者其他使用顶点和三角形索引的数据结构
+            Mesh mesh = GenerateMesh("NavMesh", navMeshData.vertices, navMeshData.indices);
+            GameObject obj = new GameObject($"NavMeshBakeMesh");
+            MeshFilter meshFilter = obj.AddComponent<MeshFilter>();
+            meshFilter.mesh = mesh;
+            MeshRenderer meshRenderer = obj.AddComponent<MeshRenderer>();
+            Material[] materials = new Material[mesh.subMeshCount];
+            Array.Fill(materials, navMeshMat);
+            meshRenderer.materials = materials;
+        }
+
+        [FoldoutGroup("Nav Mesh")]
+        [Button("保存NavMesh烘焙对应网格")]
+        public void SaveNavMeshBakeMesh()
+        {
+            // 获取NavMesh数据
+            NavMeshTriangulation navMeshData = NavMesh.CalculateTriangulation();
+            if (navMeshData.indices.Length < 3)
+            {
+                Debug.LogError($"NavMeshExporter ExportScene Error - 场景里没有需要被导出的物体，请先用NavMesh进行Bake。");
+                return;
+            }
+
+            // 通过上述数据可以构建Mesh或者其他使用顶点和三角形索引的数据结构
+            Mesh navMesh = GenerateMesh("NavMesh", navMeshData.vertices, navMeshData.indices);
+            string path = Path.Combine(Application.dataPath, $"{mapID}");
+            if (!Directory.Exists(path))
+            {
+                Directory.CreateDirectory(path);
+            }
+
+            string savePath = Path.Combine(path, "NavMeshBakeMesh.asset");
+            savePath = FileUtil.GetProjectRelativePath(savePath);
+            AssetDatabase.CreateAsset(navMesh, savePath);
+            AssetDatabase.SaveAssets();
+            Debug.Log("NavMeshBakeMesh saved at: " + savePath);
+            AssetDatabase.Refresh();
+        }
+
+        #endregion
 
         #region Debug调试
 
@@ -701,81 +1019,20 @@ namespace RecastSharp
             _usingWalkableCubeList.Clear();
         }
 
-        [FoldoutGroup("Collider Voxel/调试")]
-        [Button("解析后端二进制数据")]
-        public void LoadServerBytes2Txt(int loadMapId)
-        {
-            string filePath = Path.Combine(csServerDataPath, $"conf_scene_mask_{loadMapId}.bytes");
 
-            if (!File.Exists(filePath))
-            {
-                Debug.LogErrorFormat("{0} 文件不存在，无法解析，请确定输入的mapID以及是否已经导出二进制数据", filePath);
-                return;
-            }
-
-            string fileDirPath = Path.Combine(cvDebugDataPath, $"{mapID}");
-
-            if (!Directory.Exists(fileDirPath))
-            {
-                Directory.CreateDirectory(fileDirPath);
-            }
-
-            string serverBytes2TxtFile = Path.Combine(fileDirPath, "ServerBytesLoad.txt");
-            if (File.Exists(serverBytes2TxtFile))
-            {
-                File.Delete(serverBytes2TxtFile);
-            }
-
-            using (var reader = new BinaryReader(File.Open(filePath, FileMode.Open)))
-            {
-                using (StreamWriter writer = new StreamWriter(serverBytes2TxtFile, false, Encoding.UTF8))
-                {
-                    int maxX = reader.ReadInt32();
-                    int maxY = reader.ReadInt32();
-                    int maxZ = reader.ReadInt32();
-                    int totalSpanNum = reader.ReadInt32();
-                    writer.WriteLine($"x:{maxX}");
-                    writer.WriteLine($"y:{maxY}");
-                    writer.WriteLine($"z:{maxZ}");
-                    writer.WriteLine($"totalSpansNum:{totalSpanNum}");
-                    for (int x = 0; x <= maxX; x++)
-                    {
-                        for (int z = 0; z <= maxZ; z++)
-                        {
-                            writer.WriteLine($"x:{x},z:{z},spanNum:{reader.ReadByte()},index:{reader.ReadInt32()}");
-                        }
-                    }
-
-                    for (int i = 0; i < totalSpanNum; i++)
-                    {
-                        ulong result = reader.ReadUInt64();
-                        int tmpMin = (int)(result >> 48) & 0xffff;
-                        int tmpMax = (int)(result >> 32) & 0xffff;
-                        int tmpMask = (int)(result >> 24) & 0xff;
-                        writer.WriteLine($"index:{i},result:{result},min:{tmpMin},max;{tmpMax},mask:{tmpMask}");
-                    }
-                }
-            }
-
-            Debug.LogFormat("[VoxelViewer:LoadServerBytes2Txt] save data to {0} successfully.", serverBytes2TxtFile);
-
-            GC.Collect();
-            AssetDatabase.Refresh();
-        }
-
-
-        [FoldoutGroup("Collider Voxel/调试")]
+        [FoldoutGroup("调试")]
         [Button("打印目标Span信息")]
-        private void GetCellInfo(Vector2Int cell)
+        private void GetCellInfo(Vector2Int cell, bool isColliderVoxel = true)
         {
-            if (_colliderVoxelTool is not { buildVoxelSuccess: true })
+            VoxelTool targetTool = isColliderVoxel ? _colliderVoxelTool : _navMeshTool;
+            if (targetTool is not { buildVoxelSuccess: true })
             {
-                Debug.LogError("[VoxelViewer:GetCellInfo] build voxel success first.");
+                Debug.LogError("[VoxelBuildTool:GetCellInfo] build voxel success first.");
                 return;
             }
 
             StringBuilder builder = new StringBuilder();
-            uint spanNum = _colliderVoxelTool.GetSpans(cell.x, cell.y, SpanBuffer, SpanBufferSize);
+            uint spanNum = targetTool.GetSpans(cell.x, cell.y, SpanBuffer, SpanBufferSize);
             builder.AppendFormat("cx: {0} cz: {1} span num: {2}\n", cell.x, cell.y, spanNum);
             for (int i = 0; i < spanNum; ++i)
             {
@@ -787,20 +1044,25 @@ namespace RecastSharp
             Debug.Log(builder);
         }
 
-        [FoldoutGroup("Collider Voxel/调试")]
-        [Button("展示构造的体素"), ResponsiveButtonGroup("Collider Voxel/调试/Spans")]
-        private void ShowSpans()
+        [FoldoutGroup("调试")]
+        [Button("展示构造的体素")]
+        public void ShowSpans(bool isColliderVoxel = true)
         {
-            if (_colliderVoxelTool is not { buildVoxelSuccess: true })
+            VoxelTool targetTool = isColliderVoxel ? _colliderVoxelTool : _navMeshTool;
+            if (targetTool is not { buildVoxelSuccess: true })
             {
-                Debug.LogError("[VoxelViewer:ShowSpans] build voxel success first.");
+                Debug.LogError("[VoxelBuildTool:ShowSpans] build voxel success first.");
                 return;
             }
 
             RemoveAllCube();
-            for (int z = 0; z <= cvMaxCell.z; z++)
+
+            float voxelSize = isColliderVoxel ? cvVoxelSize : nmVoxelSize;
+            int voxelMaxX = isColliderVoxel ? cvMaxCell.x : nmMaxCell.x;
+            int voxelMaxZ = isColliderVoxel ? cvMaxCell.z : nmMaxCell.z;
+            for (int z = 0; z <= voxelMaxZ; z++)
             {
-                for (int x = 0; x <= cvMaxCell.x; x++)
+                for (int x = 0; x <= voxelMaxX; x++)
                 {
                     uint spanNum =
                         _colliderVoxelTool.GetSpans(x, z, SpanBuffer, SpanBufferSize);
@@ -810,26 +1072,26 @@ namespace RecastSharp
                         ushort min = SpanBuffer[i * VoxelTool.SpanElementNum],
                             max = SpanBuffer[i * VoxelTool.SpanElementNum + 1],
                             area = SpanBuffer[i * VoxelTool.SpanElementNum + 2];
-                        GameObject cube = SetCube(x, z, i, min, max, area);
+                        GameObject cube = SetCube(x, z, i, min, max, area, voxelSize);
                         _usingWalkableCubeList.Add(cube);
                     }
                 }
             }
         }
 
-        private GameObject SetCube(int x, int z, int spanIndex, ushort min, ushort max, ushort area)
+        private GameObject SetCube(int x, int z, int spanIndex, ushort min, ushort max, ushort area, float voxelSize)
         {
             float logicMin = min * cvVoxelHeight, loginMax = max * cvVoxelHeight;
             GameObject cubeObj = _walkableCubePool.Get();
             cubeObj.name = $"{x}_{z}_{spanIndex}_{area}";
-            cubeObj.transform.localScale = new Vector3(cvVoxelSize - 0.05f, loginMax - logicMin, cvVoxelSize - 0.05f);
-            cubeObj.transform.localPosition = new Vector3((float)(x + 0.5) * cvVoxelSize,
-                (float)(logicMin + (loginMax - logicMin) * 0.5), (float)((z + 0.5) * cvVoxelSize));
+            cubeObj.transform.localScale = new Vector3(voxelSize - 0.05f, loginMax - logicMin, voxelSize - 0.05f);
+            cubeObj.transform.localPosition = new Vector3((float)(x + 0.5) * voxelSize,
+                (float)(logicMin + (loginMax - logicMin) * 0.5), (float)((z + 0.5) * voxelSize));
             return cubeObj;
         }
 
-        [FoldoutGroup("Collider Voxel/调试")]
-        [Button("清除所有Span"), ResponsiveButtonGroup("Collider Voxel/调试/Spans")]
+        [FoldoutGroup("调试")]
+        [Button("清除所有Span")]
         private void DestroyAllSpans()
         {
             if (_voxelWalkableRoot != null)
@@ -842,33 +1104,34 @@ namespace RecastSharp
             _walkableCubePool.Clear();
         }
 
-        [FoldoutGroup("Collider Voxel/调试")]
-        [Button("显示所有Span"), ResponsiveButtonGroup("Collider Voxel/调试/Spans")]
+        [FoldoutGroup("调试")]
+        [Button("显示所有Span")]
         private void ShowAllSpans()
         {
             voxelCubeRoot.SetActive(true);
         }
 
-        [FoldoutGroup("Collider Voxel/调试")]
-        [Button("隐藏所有Span"), ResponsiveButtonGroup("Collider Voxel/调试/Spans")]
+        [FoldoutGroup("调试")]
+        [Button("隐藏所有Span")]
         private void HideAllSpans()
         {
             voxelCubeRoot.SetActive(false);
         }
 
-        [FoldoutGroup("Collider Voxel/调试")]
+        [FoldoutGroup("调试")]
         [Button("显示包围盒内Span")]
-        private void ShowCellInBoundingObject(GameObject obj)
+        private void ShowCellInBoundingObject(GameObject obj, bool isColliderVoxel = true)
         {
-            if (_colliderVoxelTool is not { buildVoxelSuccess: true })
+            VoxelTool targetTool = isColliderVoxel ? _colliderVoxelTool : _navMeshTool;
+            if (targetTool is not { buildVoxelSuccess: true })
             {
-                Debug.LogError("[VoxelViewer:ShowCellInBoundingObject] build voxel success first.");
+                Debug.LogError("[VoxelBuildTool:ShowCellInBoundingObject] build voxel success first.");
                 return;
             }
 
             if (obj == null)
             {
-                Debug.LogError("[VoxelViewer:ShowCellInBoundingObject] obj is null");
+                Debug.LogError("[VoxelBuildTool:ShowCellInBoundingObject] obj is null");
                 return;
             }
 
@@ -876,37 +1139,36 @@ namespace RecastSharp
             Renderer r = obj.GetComponent<Renderer>();
             if (r != null)
             {
-                Vector3Int minCell = new Vector3Int(Mathf.FloorToInt(r.bounds.min.x / cvVoxelSize), 0,
-                    Mathf.FloorToInt(r.bounds.min.z / cvVoxelSize));
-                Vector3Int maxCell = new Vector3Int(Mathf.FloorToInt(r.bounds.max.x / cvVoxelSize), 0,
-                    Mathf.FloorToInt(r.bounds.max.z / cvVoxelSize));
-                ShowCellInBoundingBox(minCell, maxCell);
+                float voxelSize = isColliderVoxel ? cvVoxelSize : nmVoxelSize;
+                int voxelMaxX = isColliderVoxel ? cvMaxCell.x : nmMaxCell.x;
+                int voxelMaxZ = isColliderVoxel ? cvMaxCell.z : nmMaxCell.z;
+                int minX = Mathf.Max(Mathf.FloorToInt(r.bounds.min.x / voxelSize), 0);
+                int minZ = Mathf.Max(Mathf.FloorToInt(r.bounds.min.z / voxelSize), 0);
+                int maxX = Mathf.Min(Mathf.FloorToInt(r.bounds.max.x / voxelSize), voxelMaxX);
+                int maxZ = Mathf.Min(Mathf.FloorToInt(r.bounds.max.z / voxelSize), voxelMaxZ);
+                ShowCellInBoundingBox(minX, maxX, minZ, maxZ, targetTool, voxelSize);
             }
             else
             {
-                Debug.LogError("[VoxelViewer:ShowCellInBoundingObject] obj is not has renderer");
+                Debug.LogError("[VoxelBuildTool:ShowCellInBoundingObject] obj is not has renderer");
             }
         }
 
-        private void ShowCellInBoundingBox(Vector3Int minCell, Vector3Int maxCell)
+        private void ShowCellInBoundingBox(int minX, int maxX, int minZ, int maxZ, VoxelTool targetTool,
+            float voxelSize)
         {
-            int minX = Mathf.Max(minCell.x, 0);
-            int minZ = Mathf.Max(minCell.z, 0);
-            int maxX = Mathf.Min(maxCell.x, cvMaxCell.x);
-            int maxZ = Mathf.Min(maxCell.z, cvMaxCell.z);
             for (int z = minZ; z <= maxZ; z++)
             {
                 for (int x = minX; x <= maxX; x++)
                 {
-                    uint spanNum =
-                        _colliderVoxelTool.GetSpans(x, z, SpanBuffer, SpanBufferSize);
+                    uint spanNum = targetTool.GetSpans(x, z, SpanBuffer, SpanBufferSize);
                     if (spanNum == 0) continue;
                     for (int i = 0; i < spanNum; i++)
                     {
                         ushort min = SpanBuffer[i * VoxelTool.SpanElementNum],
                             max = SpanBuffer[i * VoxelTool.SpanElementNum + 1],
                             area = SpanBuffer[i * VoxelTool.SpanElementNum + 2];
-                        GameObject cube = SetCube(x, z, i, min, max, area);
+                        GameObject cube = SetCube(x, z, i, min, max, area, voxelSize);
                         _usingWalkableCubeList.Add(cube);
                     }
                 }
@@ -916,25 +1178,32 @@ namespace RecastSharp
 
         private readonly List<GameObject> _tempVoxelCubeList = new();
 
-        [FoldoutGroup("Collider Voxel/调试")]
+        [FoldoutGroup("调试")]
         [Button("显示指定体素")]
-        private void ShowTempSpan(int x, int z)
+        private void ShowTempSpan(int x, int z, bool isColliderVoxel = true)
         {
             ClearTempSpan();
+            VoxelTool targetTool = isColliderVoxel ? _colliderVoxelTool : _navMeshTool;
+            if (targetTool is not { buildVoxelSuccess: true })
+            {
+                Debug.LogError("[VoxelBuildTool:ShowTempSpan] build voxel success first.");
+                return;
+            }
 
-            uint spanNum = _colliderVoxelTool.GetSpans(x, z, SpanBuffer, SpanBufferSize);
+            float voxelSize = isColliderVoxel ? cvVoxelSize : nmVoxelSize;
+            uint spanNum = targetTool.GetSpans(x, z, SpanBuffer, SpanBufferSize);
             if (spanNum == 0) return;
             for (int i = 0; i < spanNum; i++)
             {
                 ushort min = SpanBuffer[i * VoxelTool.SpanElementNum],
                     max = SpanBuffer[i * VoxelTool.SpanElementNum + 1],
                     area = SpanBuffer[i * VoxelTool.SpanElementNum + 2];
-                GameObject cube = SetCube(x, z, i, min, max, area);
+                GameObject cube = SetCube(x, z, i, min, max, area, voxelSize);
                 _tempVoxelCubeList.Add(cube);
             }
         }
 
-        [FoldoutGroup("Collider Voxel/调试")]
+        [FoldoutGroup("调试")]
         [Button("清除指定体素")]
         private void ClearTempSpan()
         {
@@ -947,447 +1216,6 @@ namespace RecastSharp
         }
 
         #endregion
-
-        #endregion
-
-
-        #region NavMesh
-
-        private VoxelTool _navMeshTool;
-
-        [FoldoutGroup("Nav Mesh")] [LabelText("NavMesh体素大小(长宽)")] [Range(0.01f, 5.0f)]
-        public float nmVoxelSize = 0.15f;
-
-        [FoldoutGroup("Nav Mesh")] [LabelText("NavMesh体素高度")] [Range(0.01f, 5.0f)]
-        public float nmVoxelHeight = 0.01f;
-
-        [FoldoutGroup("Nav Mesh")] [LabelText("NavMesh体素格子起偏移"), ReadOnly]
-        public Vector3Int nmMinCell = Vector3Int.zero;
-
-        [FoldoutGroup("Nav Mesh")] [LabelText("NavMesh体素格子范围"), ReadOnly]
-        public Vector3Int nmMaxCell = Vector3Int.zero;
-
-        [FoldoutGroup("Nav Mesh")] [LabelText("Agent Height")] [Range(0.0f, 10.0f)]
-        public float nmAgentHeight = 1.0f;
-
-        [FoldoutGroup("Nav Mesh")] [LabelText("Agent Radius")] [Range(0.0f, 10.0f)]
-        public float nmAgentRadius = 0.5f;
-
-        [FoldoutGroup("Nav Mesh")] [LabelText("Climb Height")] [Range(0.0f, 999.0f)]
-        public float nmClimbHeight = 0.5f;
-
-        [FoldoutGroup("Nav Mesh")] [LabelText("Max Slope")] [Range(0.0f, 60.0f)]
-        public float nmMaxSlope = 60.0f;
-
-        [FoldoutGroup("Nav Mesh/过滤")]
-        [LabelText("Filter Low Hanging Obstacles"), Tooltip("体素上表面之差小于walkClimb,上面的体素变为可行走,过滤悬空的可走障碍物")]
-        public bool nmFilterLowHangingObstacles = true;
-
-        [FoldoutGroup("Nav Mesh/过滤")] [LabelText("Filter Ledge Spans"), Tooltip("体素与邻居体素上表面之差超过这个高度，则变为不可走")]
-        public bool nmFilterLedgeSpans;
-
-        [FoldoutGroup("Nav Mesh/过滤")]
-        [LabelText("Filter Walkable Low Height Spans"), Tooltip("上下体素之间空隙高度小于walkHeight，下体素变为不可行走")]
-        public bool nmFilterWalkableLowHeightSpans = true;
-
-
-        [FoldoutGroup("Nav Mesh/优化")] [LabelText("合并封闭空间体素")]
-        public bool nmMergeClosedSpaceVoxel;
-
-        [FoldoutGroup("Nav Mesh/优化")] [LabelText("地图中必定可到达的坐标点(世界坐标)")]
-        public Vector2Int nmWalkablePoint;
-
-
-        private GameObject _voxelTopMeshObj;
-        private readonly List<GameObject> _voxelTopMeshes = new();
-        private GameObject _navMeshSurfaceObj;
-        private NavMeshSurface _meshSurface;
-        private Material _voxelTopMeshMat;
-        private Material _navMeshMat;
-
-        private void CreateVoxelTopMeshObj()
-        {
-            if (_voxelTopMeshObj == null)
-            {
-                GameObject obj = GameObject.Find(VOXEL_TOP_MESH);
-                if (obj != null)
-                {
-                    DestroyImmediate(obj);
-                }
-
-                _voxelTopMeshObj = new GameObject(VOXEL_TOP_MESH)
-                {
-                    layer = LayerMask.NameToLayer(NAV_MESH_BAKE_LAYER_NAME)
-                };
-                GameObjectUtility.SetStaticEditorFlags(_voxelTopMeshObj, StaticEditorFlags.NavigationStatic);
-                GameObjectUtility.SetNavMeshArea(_voxelTopMeshObj, NavMesh.GetAreaFromName("Walkable"));
-            }
-
-            foreach (GameObject voxelTopMesh in _voxelTopMeshes)
-            {
-                if (voxelTopMesh != null)
-                {
-                    DestroyImmediate(voxelTopMesh);
-                }
-            }
-
-            _voxelTopMeshes.Clear();
-
-            if (_navMeshSurfaceObj == null)
-            {
-                _navMeshSurfaceObj = new GameObject();
-                _meshSurface = _navMeshSurfaceObj.AddComponent<NavMeshSurface>();
-                _meshSurface.collectObjects = CollectObjects.All;
-                _meshSurface.layerMask = LayerMask.GetMask(NAV_MESH_BAKE_LAYER_NAME); // 调整为适合实际情况的图层
-                _meshSurface.onPreUpdate = OnPreUpdate;
-            }
-
-            _navMeshSurfaceObj.name = mapID.ToString();
-        }
-
-        private Material voxelTopMeshMat
-        {
-            get
-            {
-                if (_voxelTopMeshMat == null)
-                {
-                    _voxelTopMeshMat =
-                        AssetDatabase.LoadAssetAtPath<Material>("Packages/com.nemo.game.editor/Res/Voxel/NavMesh.mat");
-                }
-
-                return _voxelTopMeshMat;
-            }
-        }
-
-        private Material navMeshMat
-        {
-            get
-            {
-                if (_navMeshMat == null)
-                {
-                    _navMeshMat =
-                        AssetDatabase.LoadAssetAtPath<Material>("Packages/com.nemo.game.editor/Res/Voxel/PolyMesh.mat");
-                }
-
-                return _navMeshMat;
-            }
-        }
-
-
-        [FoldoutGroup("Nav Mesh")]
-        [Button("构建体素上表面网格(用于烘焙NavMesh)")]
-        public void GenVoxelTopMesh()
-        {
-            GC.Collect();
-            _navMeshTool ??= new VoxelTool();
-
-            //
-            // Step 1. Initialize build config.
-            //
-            _navMeshTool.Reset();
-            _navMeshTool.SetBuildConfig(nmVoxelSize, nmVoxelHeight, nmAgentHeight, nmClimbHeight, nmAgentRadius,
-                nmMaxSlope);
-            _navMeshTool.SetBoundBox(offsetX, 0, offsetZ, offsetX + xSize, ySize, offsetZ + zSize);
-
-            _navMeshTool.filterLowHangingObstacles = nmFilterLowHangingObstacles;
-            _navMeshTool.filterLedgeSpans = nmFilterLedgeSpans;
-            _navMeshTool.filterWalkableLowHeightSpans = nmFilterWalkableLowHeightSpans;
-            _navMeshTool.mergeClosedSpaceVoxel = nmMergeClosedSpaceVoxel;
-            //这里的walkablePoint是世界坐标，需要转换成体素坐标
-            _navMeshTool.walkablePoint = new Vector2Int(Mathf.FloorToInt(nmWalkablePoint.x / nmVoxelSize),
-                Mathf.FloorToInt(nmWalkablePoint.y / nmVoxelSize));
-
-            nmMinCell.Set(Mathf.CeilToInt(offsetX / nmVoxelSize),
-                0,
-                Mathf.CeilToInt(offsetZ / nmVoxelSize));
-
-            nmMaxCell.Set(nmMinCell.x + Mathf.CeilToInt(xSize / nmVoxelSize) - 1,
-                Mathf.CeilToInt(ySize / nmVoxelHeight) - 1,
-                nmMinCell.z + Mathf.CeilToInt(zSize / nmVoxelSize) - 1);
-
-
-            // 1. 生成NavMesh对应的体素数据
-            // 收集Mesh数据
-            if (collectMeshInfos == null || collectMeshInfos.Count == 0)
-            {
-                EditorUtility.DisplayDialog("错误", "CollectMeshInfos为空，请设置正确的列表数据", "关闭");
-                return;
-            }
-
-            foreach (var info in collectMeshInfos)
-            {
-                if (info.target == null)
-                    continue;
-                CollectSceneMesh(info.target, info.hasLod, _navMeshTool);
-            }
-
-            if (_navMeshTool.BuildVoxel())
-            {
-                // 2. 创建 GameObject，并设置网格数据
-                CreateVoxelTopMeshObj();
-                Mesh mesh = BuildVoxelTopMesh();
-                MeshFilter meshFilter = _voxelTopMeshObj.GetComponent<MeshFilter>();
-                if (meshFilter == null)
-                {
-                    meshFilter = _voxelTopMeshObj.AddComponent<MeshFilter>();
-                }
-
-                meshFilter.mesh = mesh;
-                MeshRenderer meshRenderer = _voxelTopMeshObj.GetComponent<MeshRenderer>();
-                if (meshRenderer == null)
-                    meshRenderer = _voxelTopMeshObj.AddComponent<MeshRenderer>();
-                Material[] materials = new Material[mesh.subMeshCount];
-                Array.Fill(materials, voxelTopMeshMat);
-                meshRenderer.materials = materials;
-            }
-            else
-            {
-                Debug.LogError("[Build NavMesh] Build Voxel Failed.");
-            }
-
-            GC.Collect();
-        }
-
-        public GameObject CreateMeshObj(Mesh mesh, Material material, GameObject parent)
-        {
-            GameObject obj = new GameObject(mesh.name);
-            if (parent != null)
-            {
-                obj.transform.SetParent(parent.transform);
-            }
-
-            MeshFilter meshFilter = obj.AddComponent<MeshFilter>();
-            meshFilter.mesh = mesh;
-            MeshRenderer meshRenderer = obj.AddComponent<MeshRenderer>();
-            meshRenderer.material = material;
-            return obj;
-        }
-
-        /// <summary>
-        /// 收集已生成体素的上表面，构造对应的Mesh
-        /// </summary>
-        private Mesh BuildVoxelTopMesh()
-        {
-            uint totalSpanNum = 0;
-            for (int z = nmMinCell.z; z < nmMaxCell.z; ++z)
-            {
-                for (int x = nmMinCell.z; x < nmMaxCell.x; ++x)
-                {
-                    uint spanNum = _navMeshTool.GetSpans(x - nmMinCell.x, z - nmMinCell.z, SpanBuffer, SpanBufferSize);
-                    if (spanNum == 0) continue;
-                    totalSpanNum += spanNum;
-                }
-            }
-
-            Vector3[] vertices = new Vector3[totalSpanNum * 4];
-            int[] triangles = new int[totalSpanNum * 6];
-            int vertexNum = 0;
-            int triangleNum = 0;
-            for (int z = nmMinCell.z; z < nmMaxCell.z; ++z)
-            {
-                for (int x = nmMinCell.x; x < nmMaxCell.x; ++x)
-                {
-                    uint spanNum = _navMeshTool.GetSpans(x - nmMinCell.x, z - nmMinCell.z, SpanBuffer, SpanBufferSize);
-                    if (spanNum == 0) continue;
-                    for (int i = 0; i < spanNum; i++)
-                    {
-                        ushort top = SpanBuffer[i * VoxelTool.SpanElementNum + 1];
-                        // point0
-                        Vector3 v0 = new Vector3((x + 0) * nmVoxelSize, top * nmVoxelHeight, (z + 0) * nmVoxelSize);
-                        vertices[vertexNum] = v0;
-                        // point1
-                        Vector3 v1 = new Vector3((x + 1) * nmVoxelSize, top * nmVoxelHeight, (z + 1) * nmVoxelSize);
-                        vertices[vertexNum + 1] = v1;
-                        // point2
-                        Vector3 v2 = new Vector3((x + 1) * nmVoxelSize, top * nmVoxelHeight, (z + 0) * nmVoxelSize);
-                        vertices[vertexNum + 2] = v2;
-                        // point3
-                        Vector3 v3 = new Vector3((x + 0) * nmVoxelSize, top * nmVoxelHeight, (z + 1) * nmVoxelSize);
-                        vertices[vertexNum + 3] = v3;
-
-                        triangles[triangleNum] = vertexNum + 0;
-                        triangles[triangleNum + 1] = vertexNum + 1;
-                        triangles[triangleNum + 2] = vertexNum + 2;
-                        triangles[triangleNum + 3] = vertexNum + 1;
-                        triangles[triangleNum + 4] = vertexNum + 0;
-                        triangles[triangleNum + 5] = vertexNum + 3;
-                        vertexNum += 4;
-                        triangleNum += 6;
-                    }
-                }
-            }
-
-            return GenerateMesh("VoxelTopMesh", vertices, triangles, true);
-        }
-
-
-        private Mesh GenerateMesh(string meshName, Vector3[] vertices, int[] triangles, Boolean needOptimize)
-        {
-            int subMeshCount = Mathf.CeilToInt((float)triangles.Length / MAX_VERTICES_PER_SUB_MESH);
-            // 创建网格对象并设置顶点和三角形数据
-            Mesh mesh = new Mesh
-            {
-                indexFormat = vertices.Length > 65536 ? IndexFormat.UInt32 : IndexFormat.UInt16,
-                subMeshCount = subMeshCount
-            };
-            mesh.SetVertices(vertices);
-            // 创建子网格
-            for (int i = 0; i < subMeshCount; i++)
-            {
-                // 计算当前子网格的索引范围
-                int startIndex = i * MAX_VERTICES_PER_SUB_MESH;
-                int endIndex = Mathf.Min((i + 1) * MAX_VERTICES_PER_SUB_MESH, triangles.Length);
-                int triangleCount = endIndex - startIndex;
-
-                // 创建子网格的索引数组
-                int[] subMeshIndices = new int[triangleCount];
-                Array.Copy(triangles, startIndex, subMeshIndices, 0, triangleCount);
-
-                // 设置子网格的索引
-                mesh.SetTriangles(subMeshIndices, i);
-            }
-
-            // 更新网格
-            mesh.RecalculateBounds();
-            mesh.RecalculateNormals();
-
-            if (needOptimize)
-            {
-                MeshUtility.Optimize(mesh);
-            }
-
-            return mesh;
-        }
-
-        private void OnPreUpdate(ref NavMeshBuildSettings obj)
-        {
-            obj.agentClimb = nmClimbHeight;
-            obj.agentHeight = nmAgentHeight;
-            obj.agentRadius = nmAgentRadius;
-            obj.agentSlope = nmMaxSlope;
-        }
-
-        [FoldoutGroup("Nav Mesh")]
-        [Button("保存上表面网格")]
-        public void SaveVoxelTopMesh()
-        {
-            GC.Collect();
-            if (_voxelTopMeshes.Count == 0)
-            {
-                Debug.LogError("[Save NavMesh] MeshFilter or Mesh is null.");
-                return;
-            }
-
-            string savePath = Path.Combine(Application.dataPath, "VoxelTopMesh", $"{mapID}");
-            foreach (GameObject obj in _voxelTopMeshes)
-            {
-                if (obj != null)
-                {
-                    MeshFilter meshFilter = obj.GetComponent<MeshFilter>();
-                    if (meshFilter != null)
-                    {
-                        string filePath = Path.Combine(savePath, $"{meshFilter.sharedMesh.name}.asset");
-                        AssetDatabase.CreateAsset(Instantiate(meshFilter.sharedMesh), filePath);
-                        AssetDatabase.SaveAssets();
-                    }
-                }
-            }
-
-            AssetDatabase.Refresh();
-        }
-
-        [FoldoutGroup("Nav Mesh")]
-        [Button("清除上表面网格")]
-        public void ClearVoxelTopMesh()
-        {
-            if (_voxelTopMeshObj != null)
-            {
-                DestroyImmediate(_voxelTopMeshObj);
-            }
-
-            _voxelTopMeshes.Clear();
-            if (_navMeshSurfaceObj != null)
-            {
-                DestroyImmediate(_navMeshSurfaceObj);
-            }
-
-            _voxelTopMeshObj = null;
-            _navMeshSurfaceObj = null;
-            _meshSurface = null;
-        }
-
-        [FoldoutGroup("Nav Mesh")]
-        [Button("提取NavMesh烘焙对应网格")]
-        public void BuildNavMeshBakeMesh()
-        {
-            // 获取NavMesh数据
-            NavMeshTriangulation navMeshData = NavMesh.CalculateTriangulation();
-            if (navMeshData.indices.Length < 3)
-            {
-                Debug.LogError($"NavMeshExporter ExportScene Error - 场景里没有需要被导出的物体，请先用NavMesh进行Bake。");
-                return;
-            }
-
-            // 通过上述数据可以构建Mesh或者其他使用顶点和三角形索引的数据结构
-            Mesh mesh = GenerateMesh("NavMesh", navMeshData.vertices, navMeshData.indices, false);
-            GameObject obj = new GameObject($"NavMeshBakeMesh");
-            MeshFilter meshFilter = obj.AddComponent<MeshFilter>();
-            meshFilter.mesh = mesh;
-            MeshRenderer meshRenderer = obj.AddComponent<MeshRenderer>();
-            Material[] materials = new Material[mesh.subMeshCount];
-            Array.Fill(materials, navMeshMat);
-            meshRenderer.materials = materials;
-        }
-
-        private Vector3 _tempPos = Vector3.zero;
-        private Vector3 _tempPos1 = Vector3.zero;
-
-        [FoldoutGroup("Nav Mesh")]
-        [Button("Nav Mesh高度检测")]
-        public void GetHeightByRaycast(float x, float z)
-        {
-            _tempPos.Set(x, 700, z);
-            _tempPos1.Set(x, 0, z);
-            Ray ray = new Ray(_tempPos, Vector3.down);
-            if (Physics.Raycast(ray, out var hit, 1000f, 1 << 13))
-            {
-                Debug.Log("hit point:" + hit.point);
-            }
-
-            if (NavMesh.SamplePosition(_tempPos, out NavMeshHit hit0, 1000f, NavMesh.AllAreas))
-            {
-                Debug.Log("navmesh hit0 point:" + hit0.position);
-            }
-
-            if (NavMesh.Raycast(_tempPos, _tempPos1, out var hit1, NavMesh.AllAreas))
-            {
-                Debug.Log("navmesh hit1 point:" + hit1.position);
-            }
-        }
-
-        [FoldoutGroup("Nav Mesh")]
-        [Button("保存NavMesh烘焙对应网格")]
-        public void SaveNavMeshBakeMesh()
-        {
-            // 获取NavMesh数据
-            NavMeshTriangulation navMeshData = NavMesh.CalculateTriangulation();
-            if (navMeshData.indices.Length < 3)
-            {
-                Debug.LogError($"NavMeshExporter ExportScene Error - 场景里没有需要被导出的物体，请先用NavMesh进行Bake。");
-                return;
-            }
-
-            // 通过上述数据可以构建Mesh或者其他使用顶点和三角形索引的数据结构
-            Mesh navMesh = GenerateMesh("NavMesh", navMeshData.vertices, navMeshData.indices, false);
-            string path = EditorUtility.SaveFilePanel("Save Separate Mesh Asset", "Assets/", $"{mapID}_nav_mesh",
-                "asset");
-            if (string.IsNullOrEmpty(path)) return;
-
-            path = FileUtil.GetProjectRelativePath(path);
-            AssetDatabase.CreateAsset(Instantiate(navMesh), path);
-            AssetDatabase.SaveAssets();
-        }
-
-        #endregion
+        
     }
 }

@@ -13,8 +13,8 @@ namespace RecastSharp
     {
         public float CellSize; //体素大小
         public float CellHeight; //体素高度
-        public float[] Bmin;
-        public float[] Bmax;
+        public float[] Min;
+        public float[] Max;
         public float WalkableSlopeAngle;
         public int WalkableHeight;
         public int WalkableClimb;
@@ -47,12 +47,12 @@ namespace RecastSharp
         private Recast.rcPolyMesh _polyMesh;
         private Recast.rcPolyMeshDetail _polyMeshDetail;
         bool _buildVoxelSuccess;
+        bool _mergeSpanSuccess;
 
         bool _filterLowHangingObstacles = true;
         bool _filterLedgeSpans = true;
         bool _filterWalkableLowHeightSpans = true;
-        bool _mergeClosedSpaceVoxel;
-        Vector2Int _walkablePoint;
+        Vector3Int _walkablePoint;
 
         public const int SpanElementNum = 3; // min，max，area
 
@@ -62,8 +62,8 @@ namespace RecastSharp
         {
             _meshData = new MeshData();
             _buildConfig = new VoxelBuildConfig();
-            _buildConfig.Bmin = new float[3];
-            _buildConfig.Bmax = new float[3];
+            _buildConfig.Min = new float[3];
+            _buildConfig.Max = new float[3];
             _ctx = new BuildContext();
         }
 
@@ -87,12 +87,12 @@ namespace RecastSharp
 
         public void SetBoundBox(float minx, float miny, float minz, float maxx, float maxy, float maxz)
         {
-            _buildConfig.Bmin[0] = minx;
-            _buildConfig.Bmin[1] = miny;
-            _buildConfig.Bmin[2] = minz;
-            _buildConfig.Bmax[0] = maxx;
-            _buildConfig.Bmax[1] = maxy;
-            _buildConfig.Bmax[2] = maxz;
+            _buildConfig.Min[0] = minx;
+            _buildConfig.Min[1] = miny;
+            _buildConfig.Min[2] = minz;
+            _buildConfig.Max[0] = maxx;
+            _buildConfig.Max[1] = maxy;
+            _buildConfig.Max[2] = maxz;
         }
 
 
@@ -111,12 +111,7 @@ namespace RecastSharp
             set => _filterWalkableLowHeightSpans = value;
         }
 
-        public bool mergeClosedSpaceVoxel
-        {
-            set => _mergeClosedSpaceVoxel = value;
-        }
-
-        public Vector2Int walkablePoint
+        public Vector3Int walkablePoint
         {
             set => _walkablePoint = value;
         }
@@ -143,14 +138,14 @@ namespace RecastSharp
         public bool BuildVoxel()
         {
             //计算格子数量
-            Recast.rcCalcGridSize(_buildConfig.Bmin, _buildConfig.Bmax, _buildConfig.CellSize, out _buildConfig.Width,
+            Recast.rcCalcGridSize(_buildConfig.Min, _buildConfig.Max, _buildConfig.CellSize, out _buildConfig.Width,
                 out _buildConfig.Height);
 
             // Reset build times gathering.
             _ctx.resetTimers();
 
             _ctx.log(Recast.rcLogCategory.RC_LOG_PROGRESS,
-                $"Building voxel: {_buildConfig.Width} x {_buildConfig.Height} cells ,{_buildConfig.Bmin[0]},{_buildConfig.Bmin[1]},{_buildConfig.Bmin[2]},{_buildConfig.Bmax[0]},{_buildConfig.Bmax[1]},{_buildConfig.Bmax[2]}");
+                $"Building voxel: {_buildConfig.Width} x {_buildConfig.Height} cells ,{_buildConfig.Min[0]},{_buildConfig.Min[1]},{_buildConfig.Min[2]},{_buildConfig.Max[0]},{_buildConfig.Max[1]},{_buildConfig.Max[2]}");
 
             // Start the build process.	
             _ctx.startTimer(Recast.rcTimerLabel.RC_TIMER_TOTAL);
@@ -161,8 +156,8 @@ namespace RecastSharp
 
             // Allocate voxel heightfield where we rasterize our input data to.
             _solid = new Recast.rcHeightfield();
-            if (!Recast.rcCreateHeightfield(_ctx, _solid, _buildConfig.Width, _buildConfig.Height, _buildConfig.Bmin,
-                    _buildConfig.Bmax, _buildConfig.CellSize, _buildConfig.CellHeight))
+            if (!Recast.rcCreateHeightfield(_ctx, _solid, _buildConfig.Width, _buildConfig.Height, _buildConfig.Min,
+                    _buildConfig.Max, _buildConfig.CellSize, _buildConfig.CellHeight))
             {
                 _ctx.log(Recast.rcLogCategory.RC_LOG_ERROR, "[VoxelTool::Build]: Could not create solid heightfield.");
                 return false;
@@ -204,10 +199,7 @@ namespace RecastSharp
             //将体素的第一个span的下表面改为0
             FillFirstSpans();
             //合并封闭空间的网格
-            if (_mergeClosedSpaceVoxel)
-            {
-                MergeClosedSpaceVoxel();
-            }
+            MergeClosedSpaceVoxel();
 
             //
             // Step 4. Partition walkable surface to simple regions.
@@ -370,6 +362,7 @@ namespace RecastSharp
             _polyMesh = null;
             _polyMeshDetail = null;
             _buildVoxelSuccess = false;
+            _mergeSpanSuccess = false;
         }
 
         public bool SaveFullJsonData(string dirPath, int regionSize)
@@ -687,45 +680,75 @@ namespace RecastSharp
             //整理数据，同时多线程合并数据
             int numColumns = _solid.width * _solid.height;
             //用于记录每种数量span的当前数量
-            Dictionary<string, MergedServerSpan> mergedSpans =
-                new Dictionary<string, MergedServerSpan>(GetTotalSpanCount());
+            Dictionary<string, MergedServerSpan> mergedSpans = new Dictionary<string, MergedServerSpan>(numColumns);
+
+            //这里在导出的时候，放大服务端反体素的方位，让服务端判断更为保守，来规避偏移问题,上下放大0.2米
+            ushort offset = 20;
             uint currentCellIndex = 0;
             for (uint columnIndex = 0; columnIndex < numColumns; columnIndex++)
             {
                 Recast.rcSpan span = _solid.spans[columnIndex];
                 byte count = 0;
-
+                //服务端需要的是反体素数据，所以这里需要反过来
                 ServerSpan firstSpan = ServerSpan.Create();
-                ServerSpan preSpan = null;
-                while (span != null)
+                if (span == null)
                 {
-                    // 构建空心体素
-                    ServerSpan serverSpan;
-                    if (preSpan == null)
-                    {
-                        serverSpan = firstSpan;
-                    }
-                    else
-                    {
-                        serverSpan = ServerSpan.Create();
-                    }
-
-                    int bot = span.smax;
-                    int top = span.next?.smin ?? serverMapVoxel.voxelMaxHeight;
-                    serverSpan.smin = (ushort)Recast.rcClamp(bot, 0, serverMapVoxel.voxelMaxHeight);
-                    serverSpan.smax = (ushort)Recast.rcClamp(top, 0, serverMapVoxel.voxelMaxHeight);
-                    serverSpan.mask = 1;
+                    firstSpan.smin = 0;
+                    firstSpan.smax = (ushort)serverMapVoxel.voxelMaxHeight;
                     count++;
-                    if (preSpan != null)
+                }
+                else
+                {
+                    ServerSpan preSpan = null;
+                    if (span.smin != 0)
                     {
-                        preSpan.next = serverSpan;
-                    }
-                    else
-                    {
-                        preSpan = serverSpan;
+                        firstSpan.smin = 0;
+                        firstSpan.smax = (ushort)Math.Min(span.smin + offset, span.smax - 1);
+                        preSpan = firstSpan;
+                        count++;
                     }
 
+                    ushort lastMax = (ushort)Math.Max(span.smax - offset, span.smin + 1); //记录上一个span的max值
                     span = span.next;
+                    while (span != null)
+                    {
+                        if (preSpan == null)
+                        {
+                            firstSpan.smin = lastMax;
+                            firstSpan.smax = (ushort)Math.Min(span.smin + offset, span.smax - 1);
+                            preSpan = firstSpan;
+                        }
+                        else
+                        {
+                            ServerSpan serverSpan = ServerSpan.Create();
+                            serverSpan.smin = lastMax;
+                            serverSpan.smax = (ushort)Math.Min(span.smin + offset, span.smax - 1);
+                            preSpan.next = serverSpan;
+                            preSpan = serverSpan;
+                        }
+
+                        count++;
+                        lastMax = (ushort)Math.Max(span.smax - offset, span.smin + 1);
+                        span = span.next;
+                    }
+
+                    if (serverMapVoxel.voxelMaxHeight > lastMax)
+                    {
+                        if (preSpan == null)
+                        {
+                            firstSpan.smin = lastMax;
+                            firstSpan.smax = (ushort)serverMapVoxel.voxelMaxHeight;
+                        }
+                        else
+                        {
+                            ServerSpan serverSpan = ServerSpan.Create();
+                            serverSpan.smin = lastMax;
+                            serverSpan.smax = (ushort)serverMapVoxel.voxelMaxHeight;
+                            preSpan.next = serverSpan;
+                        }
+
+                        count++;
+                    }
                 }
 
                 if (count > 0)
@@ -822,7 +845,7 @@ namespace RecastSharp
                     ServerSpan s = span.span;
                     while (s != null)
                     {
-                        writer.WriteLine($"index:{index++},result:{s.GetResult()},min:{s.smin},max:{s.smin}");
+                        writer.WriteLine($"index:{index++},result:{s.GetResult()},min:{s.smin},max:{s.smax}");
                         s = s.next;
                     }
                 }
@@ -833,32 +856,6 @@ namespace RecastSharp
             ServerSpan.ReleaseAll();
         }
 
-        /// <summary>
-        /// 获取当前生成的所有VoxelSpan数量(不管area标记)
-        /// </summary>
-        /// <returns></returns>
-        public int GetTotalSpanCount()
-        {
-            int spanCount = 0;
-            if (_solid != null)
-            {
-                int w = _solid.width;
-                int h = _solid.height;
-                for (int y = 0; y < h; ++y)
-                {
-                    for (int x = 0; x < w; ++x)
-                    {
-                        for (Recast.rcSpan s = _solid.spans![x + y * w]; s != null; s = s.next)
-                        {
-                            spanCount++;
-                        }
-                    }
-                }
-            }
-
-            return spanCount;
-        }
-
         #region 密闭空间合并
 
         private AntiSpan[] _antiSpans;
@@ -866,21 +863,56 @@ namespace RecastSharp
         private int _poolSize;
         private AntiSpan[] _neighborPool;
 
+        #region 密封空间合并Debug参数
+
+        private bool _hasCheckFirst;
+        public bool needDebugMergeClosedSpace { set; private get; }
+        public int checkMergeAntiSpanMin { set; private get; }
+        public int checkMergeAntiSpanMax { set; private get; }
+
+        #endregion
+
         private void MergeClosedSpaceVoxel()
         {
             int w = _solid.width;
             int h = _solid.height;
+            //可走点范围检查
+            if (_walkablePoint.x > w || _walkablePoint.z > h)
+            {
+                Debug.LogErrorFormat(
+                    "walkable point is out of range. w:{0},h:{1},_walkablePoint.x:{2},_walkablePoint.z:{3}", w, h,
+                    _walkablePoint.x, _walkablePoint.z);
+                return;
+            }
+
+            //可走点是否在体素中
+            int walkableIndex = _walkablePoint.x + _walkablePoint.z * w;
+            Recast.rcSpan span = _solid.spans[walkableIndex];
+            while (span != null)
+            {
+                if (span.smin <= _walkablePoint.y && span.smax >= _walkablePoint.y)
+                {
+                    Debug.LogErrorFormat(
+                        "walkable point is in a span. _walkablePoint.x:{0},_walkablePoint.z:{1},_walkablePoint.y:{2}",
+                        _walkablePoint.x, _walkablePoint.z, _walkablePoint.y);
+                    return;
+                }
+
+                span = span.next;
+            }
+
             _antiSpans = new AntiSpan[w * h];
             _poolQueue = new int[w * h];
             _poolSize = 0;
             _neighborPool = new AntiSpan[w * h];
             //构建原体素的反体素
-            for (int y = 0; y < h; y++)
+            for (int z = 0; z < h; z++)
             {
                 for (int x = 0; x < w; x++)
                 {
-                    int index = x + y * w;
-                    Recast.rcSpan span = _solid.spans[index];
+                    int index = x + z * w;
+                    span = _solid.spans[index];
+                    //（x,y）处没有体素，则该位置以上没有实物，因此（x,y）处的反体素只有一个，上、下表面高度分别为height、0。
                     if (span == null)
                     {
                         AntiSpan antiSpan = new AntiSpan
@@ -892,30 +924,36 @@ namespace RecastSharp
                     }
                     else
                     {
-                        //每个体素的第一个span都是从0开始的，所以这里不判断min=0的情况
+                        //（x,y）处有体素，则该位置以上有实物，因此（x,y）处的反体素有多个,为每个span生成对应的反体素
+                        AntiSpan antiSpan = new AntiSpan();
+                        _antiSpans[index] = antiSpan;
+                        bool hasInitFirst = false;
+
+                        if (span.smin != 0)
+                        {
+                            antiSpan.Min = 0;
+                            antiSpan.Max = span.smin;
+                            hasInitFirst = true;
+                        }
+
                         var lastMax = span.smax; //记录上一个span的max值
                         span = span.next;
-                        AntiSpan antiSpan = null;
                         while (span != null)
                         {
-                            if (antiSpan == null)
+                            if (hasInitFirst)
                             {
-                                antiSpan = new AntiSpan
+                                antiSpan.Next = new AntiSpan
                                 {
                                     Min = lastMax,
                                     Max = span.smin
                                 };
-                                _antiSpans[index] = antiSpan;
+                                antiSpan = antiSpan.Next;
                             }
                             else
                             {
-                                AntiSpan nextAntiSpan = new AntiSpan
-                                {
-                                    Min = lastMax,
-                                    Max = span.smin
-                                };
-                                antiSpan.Next = nextAntiSpan;
-                                antiSpan = nextAntiSpan;
+                                antiSpan.Min = lastMax;
+                                antiSpan.Max = span.smin;
+                                hasInitFirst = true;
                             }
 
                             lastMax = span.smax;
@@ -924,42 +962,61 @@ namespace RecastSharp
 
                         if (Recast.RC_SPAN_MAX_HEIGHT > lastMax)
                         {
-                            if (antiSpan == null)
+                            if (hasInitFirst)
                             {
-                                antiSpan = new AntiSpan
+                                antiSpan.Next = new AntiSpan
                                 {
                                     Min = lastMax,
                                     Max = Recast.RC_SPAN_MAX_HEIGHT
                                 };
-                                _antiSpans[index] = antiSpan;
+                                ;
                             }
                             else
                             {
-                                AntiSpan nextAntiSpan = new AntiSpan
-                                {
-                                    Min = lastMax,
-                                    Max = Recast.RC_SPAN_MAX_HEIGHT
-                                };
-                                antiSpan.Next = nextAntiSpan;
+                                antiSpan.Min = lastMax;
+                                antiSpan.Max = Recast.RC_SPAN_MAX_HEIGHT;
                             }
                         }
                     }
                 }
             }
 
-            //标记连通区。在antiSpans中采用宽度优先搜索，首先在队列中放入一个可行走区上方的反体素，从该反体素开始标记整个场景的连通反体素。
-            //TODO:有没有自动的方式来获取_walkablePoint？
-            FindNeighbor(_antiSpans[_walkablePoint.x + _walkablePoint.y * w], _walkablePoint.x, _walkablePoint.y);
-            //other
-            int ox = 0, oz = 0;
-            AntiSpan frontSpan = PopPool(ref ox, ref oz);
+            //标记连通区。在antiSpans中采用广度优先搜索，首先在队列中放入一个可行走区上方的反体素，从该反体素开始标记整个场景的连通反体素。
+            //_walkablePoint是一个可行走区上方的反体素(目前先手动定位)
+            AntiSpan frontSpan = _antiSpans[_walkablePoint.x + _walkablePoint.z * w];
             while (frontSpan != null)
             {
-                FindNeighbor(frontSpan, ox, oz);
+                if (frontSpan.Min <= _walkablePoint.y && frontSpan.Max >= _walkablePoint.y)
+                {
+                    frontSpan.Flag = 1;
+                    MarkConnectedAntiSpans(frontSpan, _walkablePoint.x, _walkablePoint.z);
+                    goto BFS;
+                }
+
+                frontSpan = frontSpan.Next;
+            }
+
+            Debug.LogErrorFormat("坐标点{0},{1}找不到对应高度 {2} 的反体素，请重新设置坐标点", _walkablePoint.x, _walkablePoint.z,
+                _walkablePoint.y);
+
+            _antiSpans = null;
+            _poolQueue = null;
+            _poolSize = 0;
+            _neighborPool = null;
+            return;
+
+            //广度优先搜索
+            BFS:
+            _hasCheckFirst = !needDebugMergeClosedSpace;
+            int ox = 0, oz = 0;
+            frontSpan = PopPool(ref ox, ref oz);
+            while (frontSpan != null)
+            {
+                MarkConnectedAntiSpans(frontSpan, ox, oz);
                 frontSpan = PopPool(ref ox, ref oz);
             }
 
-            //对于不可联通的体素，将其设置为不可行走面
+            //对于不可联通的体素，将其设置为不可行走面，根据antiSpans 重新构建spans
             for (int z = 0; z < h; z++)
             {
                 for (int x = 0; x < w; x++)
@@ -983,9 +1040,8 @@ namespace RecastSharp
                         {
                             if (antiSpan != null)
                             {
-                                //不连通或者角色不能通过的，都直接将其设置为不可走
-                                if (antiSpan.Flag != 1 ||
-                                    antiSpan.Max - antiSpan.Min < _buildConfig.WalkableHeight)
+                                //不连通或者角色不能通过的反体素，都直接将其对应的体素设置为不可走
+                                if (antiSpan.Flag != 1 || antiSpan.Max - antiSpan.Min < _buildConfig.WalkableHeight)
                                 {
                                     s.area = Recast.RC_NULL_AREA;
                                 }
@@ -998,61 +1054,80 @@ namespace RecastSharp
                 }
             }
 
-            //合并不可走的体素
+            //再合并不可走的体素
             FillNullSpans();
             _antiSpans = null;
             _poolQueue = null;
             _poolSize = 0;
             _neighborPool = null;
+            _mergeSpanSuccess = true;
         }
 
-        private void FindNeighbor(AntiSpan currAntiSpan, int x, int z)
+
+        private void MarkConnectedAntiSpans(AntiSpan frontSpan, int spanX, int spanZ)
         {
             int w = _solid.width;
             int h = _solid.height;
-            for (int i = 0; i < 3; i++)
+            // 检查8个相邻的体素
+            for (int dx = -1; dx <= 1; dx++)
             {
-                for (int j = 0; j < 3; j++)
+                for (int dz = -1; dz <= 1; dz++)
                 {
-                    int fromx = x - 1 + i;
-                    int fromz = z - 1 + j;
-                    if (fromx < 0 || fromx >= w || fromz < 0 || fromz >= h)
+                    //跳过自己
+                    if (dx == 0 && dz == 0)
                         continue;
-                    if (fromx == x && fromz == z)
+                    int neighborSpanX = spanX + dx;
+                    int neighborSpanZ = spanZ + dz;
+                    //跳过超出边界
+                    if (neighborSpanX < 0 || neighborSpanX >= w || neighborSpanZ < 0 || neighborSpanZ >= h)
                         continue;
-                    int index = fromx + fromz * w;
-                    AntiSpan antiSpan = _antiSpans[index];
-                    while (antiSpan != null)
+                    int neighborIndex = neighborSpanX + neighborSpanZ * w;
+                    AntiSpan span = _antiSpans[neighborIndex];
+                    while (span != null)
                     {
-                        if (antiSpan.Flag == 0)
+                        if (span.Flag == 0)
                         {
-                            //连通性检查
-                            if ((antiSpan.Max <= currAntiSpan.Max &&
-                                 antiSpan.Max >= currAntiSpan.Min) ||
-                                (antiSpan.Min <= currAntiSpan.Max &&
-                                 antiSpan.Min >= currAntiSpan.Min) ||
-                                (currAntiSpan.Min <= antiSpan.Max &&
-                                 currAntiSpan.Min >= antiSpan.Min) ||
-                                (currAntiSpan.Min <= antiSpan.Max && currAntiSpan.Min >= antiSpan.Min))
+                            ushort min = Math.Max(frontSpan.Min, span.Min);
+                            ushort max = Math.Min(frontSpan.Max, span.Max);
+
+                            //连通性检查，找出frontSpan和邻居反体素s的交集（min,max），如果max和min之差大于人的高度，则表示可以从frontSpan到达s，将s的flag标记为1，表示连通，并将s压入队列中
+                            if (min <= max && max - min >= _buildConfig.WalkableHeight)
                             {
-                                antiSpan.Flag = 1;
-                                if (_neighborPool[index] == null)
+                                //这里Debug检查，排查联通的反体素是否有问题
+                                if (!_hasCheckFirst &&
+                                    (frontSpan.Min == checkMergeAntiSpanMin && frontSpan.Max == checkMergeAntiSpanMax ||
+                                     span.Min == checkMergeAntiSpanMin && span.Max == checkMergeAntiSpanMax))
                                 {
-                                    _neighborPool[index] = antiSpan;
-                                    _poolQueue[_poolSize++] = index;
+                                    Debug.LogErrorFormat(
+                                        "spanX:{0},spanZ:{1},neighborSpanX:{2},neighborSpanZ:{3},frontSpan.Min:{4},frontSpan.Max:{5},span.Min:{6},span.Max:{7}",
+                                        spanX, spanZ, neighborSpanX, neighborSpanZ, frontSpan.Min, frontSpan.Max,
+                                        span.Min, span.Max);
+                                    _hasCheckFirst = true;
                                 }
-                                else
-                                {
-                                    AntiSpan s = _neighborPool[index];
-                                    _neighborPool[index] = antiSpan;
-                                    antiSpan.Link = s;
-                                }
+
+                                span.Flag = 1;
+                                AddPool(span, neighborIndex);
                             }
                         }
 
-                        antiSpan = antiSpan.Next;
+                        span = span.Next;
                     }
                 }
+            }
+        }
+
+        private void AddPool(AntiSpan antiSpan, int index)
+        {
+            if (_neighborPool[index] == null)
+            {
+                _neighborPool[index] = antiSpan;
+                _poolQueue[_poolSize++] = index;
+            }
+            else
+            {
+                AntiSpan s = _neighborPool[index];
+                _neighborPool[index] = antiSpan;
+                antiSpan.Link = s;
             }
         }
 
@@ -1079,6 +1154,132 @@ namespace RecastSharp
             }
 
             return null;
+        }
+
+        #endregion
+
+        #region 计算板块连通性
+        /// <summary>
+        /// 计算板块连通性
+        /// </summary>
+        /// <param name="regionVoxelSize">板块体素大小(长宽多少个体素格子)</param>
+        public void CalculateRegionConnectivity(int regionVoxelSize)
+        {
+            //一定要确保的合并过封闭空间体素，这样的话， 场景的所有反体素都是可走的，这样的话，就可以通过反体素的连通性来计算板块的连通性
+            if (!_mergeSpanSuccess)
+            {
+                Debug.LogError("CalculateRegionConnectivity must be called after MergeClosedSpaceVoxel");
+            }
+
+            int w = _solid.width;
+            int h = _solid.height;
+            int regionWidth = (ushort)Math.Ceiling(w * 1.0f / regionVoxelSize);
+            int regionHeight = (ushort)Math.Ceiling(h * 1.0f / regionVoxelSize);
+            int regionNum = (ushort)(regionWidth * regionHeight);
+            
+            int[] srcReg = new int[w * h];
+            int[] srcDist = new int[w * h];
+            int[] dstReg = new int[w * h];
+            int[] dstDist = new int[w * h];
+
+            int maxDist = 0;
+            int regionId = 1;
+            //初始化srcReg
+            for (int z = 0; z < h; z++)
+            {
+                for (int x = 0; x < w; x++)
+                {
+                    int index = x + z * w;
+                    srcReg[index] = _solid.spans[index] != null && _solid.spans[index].area == Recast.RC_WALKABLE_AREA
+                        ? 1
+                        : 0;
+                }
+            }
+
+            //初始化srcDist
+            for (int z = 0; z < h; z++)
+            {
+                for (int x = 0; x < w; x++)
+                {
+                    int index = x + z * w;
+                    srcDist[index] = _solid.spans[index] != null && _solid.spans[index].area == Recast.RC_WALKABLE_AREA
+                        ? 0
+                        : Recast.RC_UNSET_HEIGHT;
+                }
+            }
+
+            //初始化dstReg
+            for (int z = 0; z < h; z++)
+            {
+                for (int x = 0; x < w; x++)
+                {
+                    dstReg[x + z * w] = 0;
+                }
+            }
+
+            //初始化dstDist
+            for (int z = 0; z < h; z++)
+            {
+                for (int x = 0; x < w; x++)
+                {
+                    dstDist[x + z * w] = Recast.RC_UNSET_HEIGHT;
+                }
+            }
+
+            //计算srcReg和srcDist
+            while (true)
+            {
+                bool changed = false;
+
+                for (int z = 0; z < h; z++)
+                {
+                    for (int x = 0; x < w; x++)
+                    {
+                        int index = x + z * w;
+                        if (srcReg[index] == 0)
+                        {
+                            continue;
+                        }
+
+                        int area = _solid.spans[index].area;
+                        //检查8个相邻的体素
+                        for (int dx = -1; dx <= 1; dx++)
+                        {
+                            for (int dz = -1; dz <= 1; dz++)
+                            {
+                                //跳过自己
+                                if (dx == 0 && dz == 0)
+                                    continue;
+                                int neighborX = x + dx;
+                                int neighborZ = z + dz;
+                                //跳过超出边界
+                                if (neighborX < 0 || neighborX >= w || neighborZ < 0 || neighborZ >= h)
+                                    continue;
+                                int neighborIndex = neighborX + neighborZ * w;
+                                if (_solid.spans[neighborIndex] == null)
+                                    continue;
+                                //跳过不可行走的区域
+                                if (_solid.spans[neighborIndex].area != area)
+                                    continue;
+                                //跳过已经标记过的区域
+                                if (srcReg[neighborIndex] > 0)
+                                    continue;
+                                //跳过不可行走的区域
+                                if (_solid.spans[neighborIndex].area != Recast.RC_WALKABLE_AREA)
+                                    continue;
+                                //跳过不可行走的区域
+                                if (_solid.spans[index].area != Recast.RC_WALKABLE_AREA)
+                                    continue;
+
+                                //计算出srcReg和srcDist
+                                srcReg[neighborIndex] = srcReg[index];
+                                srcDist[neighborIndex] = srcDist[index] + 1;
+                                changed = true;
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         #endregion
