@@ -100,12 +100,14 @@ namespace RecastSharp
         public readonly ushort Min;
         public readonly ushort Max;
         public readonly byte Area;
+        public readonly byte Offset;
 
-        public VoxelSpan(ushort min, ushort max, byte area)
+        public VoxelSpan(ushort min, ushort max, byte area, byte offset = 0)
         {
             Min = min;
             Max = max;
             Area = area;
+            Offset = offset;
         }
 
         public override bool Equals(object obj)
@@ -115,12 +117,13 @@ namespace RecastSharp
 
             VoxelSpan other = (VoxelSpan)obj;
 
-            return Min == other.Min && Max == other.Max && Area == other.Area;
+            return Min == other.Min && Max == other.Max && Area == other.Area && Offset == other.Offset;
         }
 
         public override int GetHashCode()
         {
-            ulong hashCode = (ulong)Min.GetHashCode() << 32 | (ulong)Max.GetHashCode() << 16 | (uint)Area.GetHashCode();
+            ulong hashCode = (ulong)Min.GetHashCode() << 32 | (ulong)Max.GetHashCode() << 16 |
+                             (uint)Area.GetHashCode() << 8 | Offset;
             return hashCode.GetHashCode();
         }
     }

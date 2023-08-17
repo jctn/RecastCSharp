@@ -2,13 +2,19 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
+using UnityEditor;
 using UnityEngine;
 
 namespace RecastSharp
 {
+    /// <summary>
+    /// 体素构建配置
+    /// </summary>
     public struct VoxelBuildConfig
     {
         public float CellSize; //体素大小
@@ -23,7 +29,21 @@ namespace RecastSharp
         public int Height;
     }
 
-    //反体素结构
+    /// <summary>
+    /// 用于填充的Span数据结构
+    /// </summary>
+    struct FillSpanInfo
+    {
+        public int X;
+        public int Y;
+        public ushort Min;
+        public ushort Max;
+        public byte Area;
+    }
+
+    /// <summary>
+    /// 反体素结构
+    /// </summary>
     public class AntiSpan
     {
         public ushort Min;
@@ -32,6 +52,61 @@ namespace RecastSharp
         public AntiSpan Next;
 
         public AntiSpan Link;
+    }
+
+    public class UnionAntiSpan
+    {
+        public int x;
+        public int z;
+        public ushort Min;
+
+        // 并查集的代表元素，初始为自身
+        public UnionAntiSpan Link;
+
+        public UnionAntiSpan(int x, int z)
+        {
+            this.x = x;
+            this.z = z;
+        }
+
+        public UnionAntiSpan FindRoot()
+        {
+            if (Link == null)
+            {
+                return this;
+            }
+
+            // 路径压缩，将该节点的 Link 直接指向根节点
+            Link = Link.FindRoot();
+            return Link;
+        }
+
+        // 合并两个集合
+        public void Union(UnionAntiSpan other)
+        {
+            UnionAntiSpan rootA = FindRoot();
+            UnionAntiSpan rootB = other.FindRoot();
+
+            // 将一个集合的根节点指向另一个集合的根节点
+            if (rootA != rootB)
+            {
+                rootA.Link = rootB;
+            }
+        }
+
+        public bool AreConnected(UnionAntiSpan other)
+        {
+            return FindRoot() == other.FindRoot();
+        }
+    }
+
+    /// <summary>
+    /// 体素构建网格缓存数据（缓存VoxelBuildTool的CollectMeshInfo）
+    /// </summary>
+    public class BuildMeshInfo
+    {
+        public string MeshRootName;
+        public bool HasLod;
     }
 
     public class VoxelTool
@@ -44,8 +119,6 @@ namespace RecastSharp
         private byte[] _triAreas;
         private Recast.rcHeightfield _solid;
         private Recast.rcCompactHeightfield _chf;
-        private Recast.rcPolyMesh _polyMesh;
-        private Recast.rcPolyMeshDetail _polyMeshDetail;
         bool _buildVoxelSuccess;
         bool _mergeSpanSuccess;
 
@@ -56,6 +129,8 @@ namespace RecastSharp
 
         public const int SpanElementNum = 3; // min，max，area
 
+        private List<BuildMeshInfo> _buildInfos;
+
         public bool buildVoxelSuccess => _buildVoxelSuccess;
 
         public VoxelTool()
@@ -65,6 +140,7 @@ namespace RecastSharp
             _buildConfig.Min = new float[3];
             _buildConfig.Max = new float[3];
             _ctx = new BuildContext();
+            _buildInfos = new List<BuildMeshInfo>(10);
         }
 
         public void Reset()
@@ -116,20 +192,84 @@ namespace RecastSharp
             set => _walkablePoint = value;
         }
 
+        public bool CollectVoxelMesh(List<CollectMeshInfo> collectMeshInfos)
+        {
+            _buildInfos.Clear();
+            if (collectMeshInfos != null)
+            {
+                foreach (var info in collectMeshInfos)
+                {
+                    if (info.target == null)
+                        continue;
+                    AddBuildVoxelMeshRoot(info.target, info.hasLod);
+                }
+            }
+
+            if (_meshData.vertexNum == 0)
+            {
+                EditorUtility.DisplayDialog("错误", "请设置正确的体素处理网格对象,当前构造体素网格数据为空！！", "关闭");
+                return false;
+            }
+
+            return true;
+        }
 
         /// <summary>
-        /// 添加网格数据
+        /// 添加某一个场景节点下的所有网格，用于构造体素
         /// </summary>
-        /// <param name="vertices"></param>
-        /// <param name="vertexNum"></param>
-        /// <param name="triangles"></param>
-        /// <param name="triangleNum"></param>
-        /// <param name="area"></param>
-        /// <returns></returns>
-        public void AddMesh(float[] vertices, int vertexNum, int[] triangles, int triangleNum, byte area)
+        /// <param name="root">场景GameObject节点</param>
+        /// <param name="hasLod">节点下的网格对象是否有LOD</param>
+        private void AddBuildVoxelMeshRoot(GameObject root, bool hasLod)
         {
-            _meshData.AddMesh(vertices, vertexNum, triangles, triangleNum, area);
+            _buildInfos.Add(new BuildMeshInfo { MeshRootName = root.name, HasLod = hasLod });
+            if (hasLod)
+            {
+                LODGroup[] lodGroups = root.GetComponentsInChildren<LODGroup>();
+                foreach (LODGroup group in lodGroups)
+                {
+                    LOD lod = group.GetLODs()[0];
+                    foreach (Renderer r in lod.renderers)
+                    {
+                        var mf = r.GetComponent<MeshFilter>();
+                        AddVoxelMesh(mf);
+                    }
+                }
+            }
+            else
+            {
+                MeshFilter[] mfs = root.GetComponentsInChildren<MeshFilter>();
+                foreach (MeshFilter meshFilter in mfs)
+                {
+                    AddVoxelMesh(meshFilter);
+                }
+            }
         }
+
+        /// <summary>
+        /// 添加单个网格构造体素
+        /// </summary>
+        /// <param name="meshFilter"></param>
+        private void AddVoxelMesh(MeshFilter meshFilter)
+        {
+            if (meshFilter.gameObject.activeSelf && meshFilter.gameObject.activeInHierarchy &&
+                meshFilter.sharedMesh != null)
+            {
+                Mesh mesh = meshFilter.sharedMesh;
+                Vector3[] meshVertices = mesh.vertices;
+                int vertexCount = meshVertices.Length;
+                float[] vertices = new float[vertexCount * 3];
+                for (int i = 0; i < vertexCount; i++)
+                {
+                    Vector3 globalVertex = meshFilter.transform.TransformPoint(meshVertices[i]);
+                    vertices[i * 3] = globalVertex.x;
+                    vertices[i * 3 + 1] = globalVertex.y;
+                    vertices[i * 3 + 2] = globalVertex.z;
+                }
+
+                _meshData.AddMesh(vertices, vertexCount, mesh.triangles, mesh.triangles.Length / 3, 0);
+            }
+        }
+
 
         /// <summary>
         /// 构造体素
@@ -223,13 +363,17 @@ namespace RecastSharp
 
 
             _ctx.stopTimer(Recast.rcTimerLabel.RC_TIMER_TOTAL);
+            long milliseconds = _ctx.getAccumulatedTime(Recast.rcTimerLabel.RC_TIMER_TOTAL) /
+                                TimeSpan.TicksPerMillisecond;
+            TimeSpan timeSpan = TimeSpan.FromMilliseconds(milliseconds);
             _ctx.log(Recast.rcLogCategory.RC_LOG_PROGRESS,
-                $"build time: {_ctx.getAccumulatedTime(Recast.rcTimerLabel.RC_TIMER_TOTAL) / TimeSpan.TicksPerMillisecond} ms");
+                $"build time: {timeSpan:mm\\:ss\\.fff}");
 
             _buildVoxelSuccess = true;
 
             return true;
         }
+
 
         /// <summary>
         /// 过滤操作
@@ -251,21 +395,13 @@ namespace RecastSharp
                 Recast.rcFilterWalkableLowHeightSpans(_ctx, _buildConfig.WalkableHeight, _solid);
         }
 
-        struct AddSpanInfo
-        {
-            public int X;
-            public int Y;
-            public ushort Smin;
-            public ushort Smax;
-            public byte Area;
-        }
 
         /// <summary>
         /// 填充不可行走面的体素
         /// </summary>
         private void FillNullSpans()
         {
-            List<AddSpanInfo> addSpanList = new List<AddSpanInfo>();
+            List<FillSpanInfo> addSpanList = new List<FillSpanInfo>();
 
             int w = _solid.width;
             int h = _solid.height;
@@ -279,12 +415,12 @@ namespace RecastSharp
                     {
                         if (s.area == Recast.RC_NULL_AREA && s.next != null)
                         {
-                            AddSpanInfo info = new AddSpanInfo
+                            FillSpanInfo info = new FillSpanInfo
                             {
                                 X = x,
                                 Y = y,
-                                Smin = s.smax,
-                                Smax = s.next?.smin ?? maxHeight,
+                                Min = s.smax,
+                                Max = s.next?.smin ?? maxHeight,
                                 Area = s.area,
                             };
                             addSpanList.Add(info);
@@ -293,9 +429,9 @@ namespace RecastSharp
                 }
             }
 
-            foreach (AddSpanInfo info in addSpanList)
+            foreach (var info in addSpanList)
             {
-                Recast.rcAddSpan(_ctx, _solid, info.X, info.Y, info.Smin, info.Smax, info.Area,
+                Recast.rcAddSpan(_ctx, _solid, info.X, info.Y, info.Min, info.Max, info.Area,
                     _buildConfig.WalkableClimb);
             }
         }
@@ -359,10 +495,42 @@ namespace RecastSharp
             _triAreas = null;
             _solid = null;
             _chf = null;
-            _polyMesh = null;
-            _polyMeshDetail = null;
             _buildVoxelSuccess = false;
             _mergeSpanSuccess = false;
+        }
+
+        public void TestOffset(int cellX, int cellY)
+        {
+            Recast.rcSpan span = _solid.spans[cellX + cellY * _solid.width];
+            float raycastYOffset = _buildConfig.WalkableClimb * 0.5f * _solid.ch;
+            while (span != null)
+            {
+                double topHeight = span.smax * _solid.ch;
+                float raycastY = (float)(topHeight + raycastYOffset);
+                float realHeight = GetVoxelSpanRealHeight(cellX, cellY, _solid.cs, raycastY);
+                byte offset = 0;
+                if (realHeight != 0)
+                {
+                    int offsetInt = (int)(span.smax - realHeight / _solid.ch);
+                    offsetInt = Math.Max(Byte.MinValue, Math.Min(offsetInt, MaxHeightOffset));
+                    offset = (byte)offsetInt;
+                }
+
+                Debug.LogFormat("realHeight:{0},topHeight:{1},span.smax:{2},offset:{3},offset_byte:{4}", realHeight,
+                    topHeight, span.smax,
+                    span.smax - realHeight / _solid.ch, offset);
+                CreateCube((cellX + 0.5f) * _solid.cs, (span.smax - MaxHeightOffset) * _solid.ch,
+                    (cellY + 0.5f) * _solid.cs, "result");
+                span = span.next;
+            }
+        }
+
+        public void CreateCube(float x, float y, float z, string name)
+        {
+            GameObject cube = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            cube.name = name;
+            cube.transform.position = new Vector3(x, y, z);
+            cube.transform.localScale = new Vector3(0.5f, 0, 0.5f);
         }
 
         public bool SaveFullJsonData(string dirPath, int regionSize)
@@ -374,6 +542,8 @@ namespace RecastSharp
 
             JsonMapVoxel mapVoxel = new JsonMapVoxel();
             mapVoxel.Init(_solid, regionSize);
+            //计算射线的起始高度直接抬高WalkableClimb的一半
+            float raycastYOffset = _buildConfig.WalkableClimb * 0.5f * mapVoxel.voxelHeight;
             // 分区域分析并填充数据
             for (int i = 0; i < mapVoxel.regionNum; i++)
             {
@@ -395,25 +565,43 @@ namespace RecastSharp
                         var cellX = x + cx;
                         int spNum = 0;
 
-                        Recast.rcSpan s = _solid.spans[cellX + cellY * _solid.width];
-                        Recast.rcSpan begin = s;
-                        while (s != null)
+                        Recast.rcSpan span = _solid.spans[cellX + cellY * _solid.width];
+                        Recast.rcSpan firstSpan = span;
+                        while (span != null)
                         {
                             ++spNum;
-                            s = s.next;
+                            span = span.next;
                         }
 
                         CellSpanInfo info = new CellSpanInfo(cellX, cellY, spNum);
-                        for (int j = 0; j < spNum; j++)
+                        if (spNum > 0)
                         {
-                            info.spans[j] = new VoxelSpan(begin.smin, begin.smax, begin.area);
-                            begin = begin.next;
+                            for (int j = 0; j < spNum; j++)
+                            {
+                                double topHeight = firstSpan.smax * mapVoxel.voxelHeight;
+                                float raycastY = (float)(topHeight + raycastYOffset);
+                                float realHeight =
+                                    GetVoxelSpanRealHeight(cellX, cellY, mapVoxel.voxelSize, raycastY);
+                                byte offset = 0;
+                                //realHeight==0表示，5个点，都拿不到高度或者就是贴着Y轴0点，这种情况下，不需要偏移
+                                //TODO:是否需要考虑MaxHeightOffset > span.max - span.min???
+                                if (realHeight != 0)
+                                {
+                                    int offsetInt = (int)(firstSpan.smax - realHeight / _solid.ch);
+                                    offsetInt = Math.Max(Byte.MinValue, Math.Min(offsetInt, MaxHeightOffset));
+                                    offset = (byte)offsetInt;
+                                }
+
+                                info.spans[j] = new VoxelSpan(firstSpan.smin, firstSpan.smax, firstSpan.area, offset);
+                                firstSpan = firstSpan.next;
+                            }
                         }
 
                         region.spans[index] = info;
                         index++;
                     }
                 }
+
 
                 File.WriteAllText(Path.Combine(dirPath, $"region_{i}_full.json"),
                     JsonConvert.SerializeObject(region, Formatting.Indented));
@@ -433,13 +621,19 @@ namespace RecastSharp
             clientMapVoxel.Init(_solid, regionSize);
             // 分区域分析并填充数据
             VoxelSpan[][][] cellSpans = new VoxelSpan[clientMapVoxel.regionNum][][];
+
+            //计算射线的起始高度直接抬高WalkableClimb的一半
+            float raycastYOffset = _buildConfig.WalkableClimb * 0.5f * clientMapVoxel.voxelHeight;
+
             for (int i = 0; i < clientMapVoxel.regionNum; i++)
             {
                 // 计算区域的起始坐标，注意了，这里相当于原始坐标-offset
                 int cx = i % clientMapVoxel.regionWidth * regionSize;
                 int cy = i / clientMapVoxel.regionHeight * regionSize;
-                RegionVoxelData region = new RegionVoxelData();
-                region.index = i;
+                RegionVoxelData region = new RegionVoxelData
+                {
+                    index = i
+                };
                 clientMapVoxel.regions[i] = region;
                 region.cellWidthNum = (ushort)(cx + regionSize <= _solid.width ? regionSize : _solid.width - cx);
                 region.cellHeightNum = (ushort)(cy + regionSize <= _solid.height ? regionSize : _solid.height - cy);
@@ -450,12 +644,15 @@ namespace RecastSharp
 
                 int totalSpanNum = 0;
                 uint tmpCellIdx = 0;
+                byte offset;
                 for (int y = 0; y < region.cellHeightNum; ++y)
                 {
+                    var cellY = y + cy;
                     for (int x = 0; x < region.cellWidthNum; ++x)
                     {
+                        var cellX = x + cx;
                         byte spNum = 0;
-                        int realIndex = x + cx + (y + cy) * _solid.width;
+                        int realIndex = cellX + cellY * _solid.width;
                         for (Recast.rcSpan s = _solid.spans[realIndex]; s != null; s = s.next)
                         {
                             spNum++;
@@ -466,9 +663,22 @@ namespace RecastSharp
                         {
                             VoxelSpan[] spans = new VoxelSpan[spNum];
                             int tmpSpanIdx = 0;
-                            for (Recast.rcSpan s = _solid.spans[realIndex]; s != null; s = s.next)
+                            for (Recast.rcSpan span = _solid.spans[realIndex]; span != null; span = span.next)
                             {
-                                spans[tmpSpanIdx] = new VoxelSpan(s.smin, s.smax, s.area);
+                                float topHeight = span.smax * clientMapVoxel.voxelHeight;
+                                float raycastY = topHeight + raycastYOffset;
+                                float realHeight =
+                                    GetVoxelSpanRealHeight(cellX, cellY, clientMapVoxel.voxelSize, raycastY);
+                                offset = 0;
+                                //realHeight==0表示，5个点，都拿不到高度或者就是贴着Y轴0点，这种情况下，不需要偏移
+                                if (realHeight != 0)
+                                {
+                                    int offsetInt = (int)(span.smax - realHeight / _solid.ch);
+                                    offsetInt = Math.Max(Byte.MinValue, Math.Min(offsetInt, MaxHeightOffset));
+                                    offset = (byte)offsetInt;
+                                }
+
+                                spans[tmpSpanIdx] = new VoxelSpan(span.smin, span.smax, span.area, offset);
                                 tmpSpanIdx++;
                             }
 
@@ -498,6 +708,110 @@ namespace RecastSharp
             //导出json对照
             ExportClientJson(jsonDirPath, clientMapVoxel);
             return true;
+        }
+
+        private static readonly RaycastHit[] Results = new RaycastHit[10];
+        private readonly RaycastDistanceComparer _distanceComparer = new();
+
+        private const byte MaxHeightOffset = 20; // 最大高度偏移量
+
+        /// <summary>
+        /// 获取体素的真实高度Offset
+        /// </summary>
+        /// <param name="voxelX"></param>
+        /// <param name="voxelY"></param>
+        /// <param name="voxelSize"></param>
+        /// <param name="raycastY"></param>
+        /// <returns></returns>
+        private float GetVoxelSpanRealHeight(int voxelX, int voxelY, float voxelSize, float raycastY)
+        {
+            //初始化5个点的xz
+            float left = voxelX * voxelSize;
+            float right = (voxelX + 1) * voxelSize;
+            float bottom = (voxelY) * voxelSize;
+            float top = (voxelY + 1) * voxelSize;
+            float centerX = (voxelX + 0.5f) * voxelSize;
+            float centerZ = (voxelY + 0.5f) * voxelSize;
+
+            //平均取样，如果有碰撞，取平均值
+            int raycastNum = 0;
+            float realHeight = 0;
+            //左下
+            float raycastHeight = VoxelRaycast(left, raycastY, bottom);
+            if (raycastHeight > 0)
+            {
+                realHeight += raycastHeight;
+                raycastNum++;
+            }
+
+            //左上
+            raycastHeight = VoxelRaycast(left, raycastY, top);
+            if (raycastHeight > 0)
+            {
+                realHeight += raycastHeight;
+                raycastNum++;
+            }
+
+            //右下
+            raycastHeight = VoxelRaycast(right, raycastY, bottom);
+            if (raycastHeight > 0)
+            {
+                realHeight += raycastHeight;
+                raycastNum++;
+            }
+
+            //右上
+            raycastHeight = VoxelRaycast(right, raycastY, top);
+            if (raycastHeight > 0)
+            {
+                realHeight += raycastHeight;
+                raycastNum++;
+            }
+
+            //中心点
+            raycastHeight = VoxelRaycast(centerX, raycastY, centerZ);
+            if (raycastHeight > 0)
+            {
+                realHeight += raycastHeight;
+                raycastNum++;
+            }
+
+            if (raycastNum == 0)
+            {
+                return 0;
+            }
+
+            return realHeight / raycastNum;
+        }
+
+        /// <summary>
+        /// 获取点往下的碰撞点，用于模拟获取体素的正式高度，射线长度为5
+        /// </summary>
+        /// <param name="x"></param>
+        /// <param name="y"></param>
+        /// <param name="z"></param>
+        /// <param name="maxDistance"></param>
+        /// <returns></returns>
+        private float VoxelRaycast(float x, float y, float z, float maxDistance = 5)
+        {
+            int result = Physics.RaycastNonAlloc(new Vector3(x, y, z), Vector3.down, Results, maxDistance);
+            if (result > 0)
+            {
+                // 按距离排序，取最近的碰撞点
+                Array.Sort(Results, 0, result, _distanceComparer);
+                return Results[0].point.y;
+            }
+
+            return 0f;
+        }
+
+        // 距离排序比较器
+        public class RaycastDistanceComparer : IComparer<RaycastHit>
+        {
+            public int Compare(RaycastHit hit1, RaycastHit hit2)
+            {
+                return hit1.distance.CompareTo(hit2.distance);
+            }
         }
 
         // 生成 XZ 平面对应的字符串 Key
@@ -627,6 +941,7 @@ namespace RecastSharp
                 VoxelSpan span = region.spans[i];
                 writer.Write(span.Min);
                 writer.Write(span.Max);
+                writer.Write(span.Offset);
             }
         }
 
@@ -654,6 +969,14 @@ namespace RecastSharp
             dic.Add("mapX", clientMapVoxel.mapX);
             dic.Add("mapY", clientMapVoxel.mapY);
             dic.Add("mapZ", clientMapVoxel.mapZ);
+            dic.Add("buildVoxelInfo", _buildInfos);
+            dic.Add("walkableSlopeAngle", _buildConfig.WalkableSlopeAngle);
+            dic.Add("walkableHeight", _buildConfig.WalkableHeight);
+            dic.Add("walkableClimb", _buildConfig.WalkableClimb);
+            dic.Add("walkableRadius", _buildConfig.WalkableRadius);
+            dic.Add("walkPointX", _walkablePoint.x * clientMapVoxel.voxelSize);
+            dic.Add("walkPointY", _walkablePoint.y * clientMapVoxel.voxelHeight);
+            dic.Add("walkPointZ", _walkablePoint.z * clientMapVoxel.voxelSize);
             dic.Add("regionAxisNum", clientMapVoxel.regionAxisNum);
             dic.Add("regionNum", clientMapVoxel.regionNum);
             dic.Add("regionWidth", clientMapVoxel.regionWidth);
@@ -695,6 +1018,7 @@ namespace RecastSharp
                 {
                     firstSpan.smin = 0;
                     firstSpan.smax = (ushort)serverMapVoxel.voxelMaxHeight;
+                    firstSpan.mask = 1;
                     count++;
                 }
                 else
@@ -704,6 +1028,7 @@ namespace RecastSharp
                     {
                         firstSpan.smin = 0;
                         firstSpan.smax = (ushort)Math.Min(span.smin + offset, span.smax - 1);
+                        firstSpan.mask = 1;
                         preSpan = firstSpan;
                         count++;
                     }
@@ -716,6 +1041,7 @@ namespace RecastSharp
                         {
                             firstSpan.smin = lastMax;
                             firstSpan.smax = (ushort)Math.Min(span.smin + offset, span.smax - 1);
+                            firstSpan.mask = 1;
                             preSpan = firstSpan;
                         }
                         else
@@ -723,6 +1049,7 @@ namespace RecastSharp
                             ServerSpan serverSpan = ServerSpan.Create();
                             serverSpan.smin = lastMax;
                             serverSpan.smax = (ushort)Math.Min(span.smin + offset, span.smax - 1);
+                            serverSpan.mask = 1;
                             preSpan.next = serverSpan;
                             preSpan = serverSpan;
                         }
@@ -738,12 +1065,14 @@ namespace RecastSharp
                         {
                             firstSpan.smin = lastMax;
                             firstSpan.smax = (ushort)serverMapVoxel.voxelMaxHeight;
+                            firstSpan.mask = 1;
                         }
                         else
                         {
                             ServerSpan serverSpan = ServerSpan.Create();
                             serverSpan.smin = lastMax;
                             serverSpan.smax = (ushort)serverMapVoxel.voxelMaxHeight;
+                            serverSpan.mask = 1;
                             preSpan.next = serverSpan;
                         }
 
@@ -969,7 +1298,6 @@ namespace RecastSharp
                                     Min = lastMax,
                                     Max = Recast.RC_SPAN_MAX_HEIGHT
                                 };
-                                ;
                             }
                             else
                             {
@@ -1159,6 +1487,9 @@ namespace RecastSharp
         #endregion
 
         #region 计算板块连通性
+
+        private UnionAntiSpan[] _unionAntiSpans;
+
         /// <summary>
         /// 计算板块连通性
         /// </summary>
@@ -1171,115 +1502,113 @@ namespace RecastSharp
                 Debug.LogError("CalculateRegionConnectivity must be called after MergeClosedSpaceVoxel");
             }
 
+            //初始化反体素
+            InitUnionAntiSpan();
+            //处理反体素连通性
+            ConnectVoxels();
+        }
+
+        public UnionAntiSpan GetUnionAntiSpan(int x, int z)
+        {
+            if (_unionAntiSpans == null)
+            {
+                return null;
+            }
+
+            int w = _solid.width;
+            int index = x + z * w;
+            return _unionAntiSpans[index];
+        }
+
+
+        public void TestConnect(Vector2Int start, Vector2Int end)
+        {
+            if (_unionAntiSpans == null)
+            {
+                return;
+            }
+
+            int w = _solid.width;
+            int startIndex = start.x + start.y * w;
+            int endIndex = end.x + end.y * w;
+            UnionAntiSpan startSpan = _unionAntiSpans[startIndex];
+            UnionAntiSpan endSpan = _unionAntiSpans[endIndex];
+            Debug.Log("isConnect-->" + (startSpan.FindRoot() == endSpan.FindRoot()));
+        }
+
+        private void InitUnionAntiSpan()
+        {
             int w = _solid.width;
             int h = _solid.height;
-            int regionWidth = (ushort)Math.Ceiling(w * 1.0f / regionVoxelSize);
-            int regionHeight = (ushort)Math.Ceiling(h * 1.0f / regionVoxelSize);
-            int regionNum = (ushort)(regionWidth * regionHeight);
-            
-            int[] srcReg = new int[w * h];
-            int[] srcDist = new int[w * h];
-            int[] dstReg = new int[w * h];
-            int[] dstDist = new int[w * h];
-
-            int maxDist = 0;
-            int regionId = 1;
-            //初始化srcReg
+            _unionAntiSpans = new UnionAntiSpan[w * h];
+            //构建原体素的反体素
             for (int z = 0; z < h; z++)
             {
                 for (int x = 0; x < w; x++)
                 {
                     int index = x + z * w;
-                    srcReg[index] = _solid.spans[index] != null && _solid.spans[index].area == Recast.RC_WALKABLE_AREA
-                        ? 1
-                        : 0;
-                }
-            }
-
-            //初始化srcDist
-            for (int z = 0; z < h; z++)
-            {
-                for (int x = 0; x < w; x++)
-                {
-                    int index = x + z * w;
-                    srcDist[index] = _solid.spans[index] != null && _solid.spans[index].area == Recast.RC_WALKABLE_AREA
-                        ? 0
-                        : Recast.RC_UNSET_HEIGHT;
-                }
-            }
-
-            //初始化dstReg
-            for (int z = 0; z < h; z++)
-            {
-                for (int x = 0; x < w; x++)
-                {
-                    dstReg[x + z * w] = 0;
-                }
-            }
-
-            //初始化dstDist
-            for (int z = 0; z < h; z++)
-            {
-                for (int x = 0; x < w; x++)
-                {
-                    dstDist[x + z * w] = Recast.RC_UNSET_HEIGHT;
-                }
-            }
-
-            //计算srcReg和srcDist
-            while (true)
-            {
-                bool changed = false;
-
-                for (int z = 0; z < h; z++)
-                {
-                    for (int x = 0; x < w; x++)
+                    Recast.rcSpan span = _solid.spans[index];
+                    UnionAntiSpan antiSpan = new UnionAntiSpan(x, z);
+                    _unionAntiSpans[index] = antiSpan;
+                    //（x,y）处没有体素，则该位置以上没有实物，因此（x,y）处的反体素只有一个，上、下表面高度分别为height、0。
+                    if (span is not { smin: 0 })
                     {
-                        int index = x + z * w;
-                        if (srcReg[index] == 0)
-                        {
-                            continue;
-                        }
-
-                        int area = _solid.spans[index].area;
-                        //检查8个相邻的体素
-                        for (int dx = -1; dx <= 1; dx++)
-                        {
-                            for (int dz = -1; dz <= 1; dz++)
-                            {
-                                //跳过自己
-                                if (dx == 0 && dz == 0)
-                                    continue;
-                                int neighborX = x + dx;
-                                int neighborZ = z + dz;
-                                //跳过超出边界
-                                if (neighborX < 0 || neighborX >= w || neighborZ < 0 || neighborZ >= h)
-                                    continue;
-                                int neighborIndex = neighborX + neighborZ * w;
-                                if (_solid.spans[neighborIndex] == null)
-                                    continue;
-                                //跳过不可行走的区域
-                                if (_solid.spans[neighborIndex].area != area)
-                                    continue;
-                                //跳过已经标记过的区域
-                                if (srcReg[neighborIndex] > 0)
-                                    continue;
-                                //跳过不可行走的区域
-                                if (_solid.spans[neighborIndex].area != Recast.RC_WALKABLE_AREA)
-                                    continue;
-                                //跳过不可行走的区域
-                                if (_solid.spans[index].area != Recast.RC_WALKABLE_AREA)
-                                    continue;
-
-                                //计算出srcReg和srcDist
-                                srcReg[neighborIndex] = srcReg[index];
-                                srcDist[neighborIndex] = srcDist[index] + 1;
-                                changed = true;
-                            }
-                        }
+                        antiSpan.Min = 0;
+                    }
+                    else
+                    {
+                        antiSpan.Min = span.smax;
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// 合并体素
+        /// </summary>
+        private void ConnectVoxels()
+        {
+            int w = _solid.width;
+            int h = _solid.height;
+            for (int z = 0; z < h; z++)
+            {
+                for (int x = 0; x < w; x++)
+                {
+                    int index = x + z * w;
+                    UnionAntiSpan unionAntiSpan = _unionAntiSpans[index];
+
+                    // 对当前体素的上、下、左、右体素进行判断
+                    MergeWithNeighbors(unionAntiSpan, x - 1, z); // 左侧体素
+                    MergeWithNeighbors(unionAntiSpan, x + 1, z); // 右侧体素
+                    MergeWithNeighbors(unionAntiSpan, x, z - 1); // 上方体素
+                    MergeWithNeighbors(unionAntiSpan, x, z + 1); // 下方体素
+                }
+            }
+        }
+
+        private void MergeWithNeighbors(UnionAntiSpan currentSpan, int neighborX, int neighborZ)
+        {
+            if (IsInRange(neighborX, neighborZ))
+            {
+                int index = neighborX + neighborZ * _solid.width;
+                UnionAntiSpan neighborSpans = _unionAntiSpans[index];
+                // 对当前体素的每个 AntiSpan 和邻居体素的每个 AntiSpan 进行判断和合并
+                if (!currentSpan.AreConnected(neighborSpans) && SpansCanConnected(currentSpan, neighborSpans))
+                {
+                    currentSpan.Union(neighborSpans);
+                }
+            }
+        }
+
+        private bool IsInRange(int x, int z)
+        {
+            return x >= 0 && x < _solid.width && z >= 0 && z < _solid.height;
+        }
+
+        private bool SpansCanConnected(UnionAntiSpan spanA, UnionAntiSpan spanB)
+        {
+            //两个span的高度差小于人物高度，就认为可连通
+            return Mathf.Abs(spanA.Min - spanB.Min) <= _buildConfig.WalkableHeight;
         }
 
         #endregion

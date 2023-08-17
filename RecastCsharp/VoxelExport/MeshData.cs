@@ -29,6 +29,8 @@ namespace RecastSharp
             _vertices = new float[_curVerCap * 3];
             _triangles = new int[_curTriCap * 3];
             _areas = new byte[_curTriCap * 3];
+            _vertexNum = 0;
+            _triangleNum = 0;
         }
 
         /// <summary>
