@@ -56,29 +56,21 @@ namespace RecastSharp
 
     public class UnionAntiSpan
     {
-        public int x;
-        public int z;
         public ushort Min;
 
         // 并查集的代表元素，初始为自身
-        public UnionAntiSpan Link;
-
-        public UnionAntiSpan(int x, int z)
-        {
-            this.x = x;
-            this.z = z;
-        }
+        private UnionAntiSpan _link;
 
         public UnionAntiSpan FindRoot()
         {
-            if (Link == null)
+            if (_link == null)
             {
                 return this;
             }
 
             // 路径压缩，将该节点的 Link 直接指向根节点
-            Link = Link.FindRoot();
-            return Link;
+            _link = _link.FindRoot();
+            return _link;
         }
 
         // 合并两个集合
@@ -90,7 +82,7 @@ namespace RecastSharp
             // 将一个集合的根节点指向另一个集合的根节点
             if (rootA != rootB)
             {
-                rootA.Link = rootB;
+                rootA._link = rootB;
             }
         }
 
@@ -187,7 +179,7 @@ namespace RecastSharp
             set => _filterWalkableLowHeightSpans = value;
         }
 
-        public Vector3Int walkablePoint
+        public Vector3Int point
         {
             set => _walkablePoint = value;
         }
@@ -1486,15 +1478,15 @@ namespace RecastSharp
 
         #endregion
 
-        #region 计算板块连通性
+        #region 计算体素连通性
 
         private UnionAntiSpan[] _unionAntiSpans;
+        private Byte[] _connectFlags; //用于记录连通性的标记，0为不连通，1为连通
 
         /// <summary>
-        /// 计算板块连通性
+        /// 计算地面体素连通性
         /// </summary>
-        /// <param name="regionVoxelSize">板块体素大小(长宽多少个体素格子)</param>
-        public void CalculateRegionConnectivity(int regionVoxelSize)
+        public void CalculateConnectivity(Vector2Int point)
         {
             //一定要确保的合并过封闭空间体素，这样的话， 场景的所有反体素都是可走的，这样的话，就可以通过反体素的连通性来计算板块的连通性
             if (!_mergeSpanSuccess)
@@ -1506,6 +1498,22 @@ namespace RecastSharp
             InitUnionAntiSpan();
             //处理反体素连通性
             ConnectVoxels();
+            int w = _solid.width;
+            int h = _solid.height;
+            _connectFlags = new byte[w * h];
+            UnionAntiSpan walkableSpan = _unionAntiSpans[point.x + point.y * w];
+            for (int z = 0; z < h; z++)
+            {
+                for (int x = 0; x < w; x++)
+                {
+                    int index = x + z * w;
+                    UnionAntiSpan antiSpan = _unionAntiSpans[index];
+                    if (walkableSpan.AreConnected(antiSpan))
+                    {
+                        _connectFlags[index] = 1;
+                    }
+                }
+            }
         }
 
         public UnionAntiSpan GetUnionAntiSpan(int x, int z)
@@ -1541,16 +1549,15 @@ namespace RecastSharp
             int w = _solid.width;
             int h = _solid.height;
             _unionAntiSpans = new UnionAntiSpan[w * h];
-            //构建原体素的反体素
+            //构建地表体素的反体素，潜规则默认取第一个span的smax作为反体素的min，如果第一个span的smin为0，则反体素的min为0
             for (int z = 0; z < h; z++)
             {
                 for (int x = 0; x < w; x++)
                 {
                     int index = x + z * w;
                     Recast.rcSpan span = _solid.spans[index];
-                    UnionAntiSpan antiSpan = new UnionAntiSpan(x, z);
+                    UnionAntiSpan antiSpan = new UnionAntiSpan();
                     _unionAntiSpans[index] = antiSpan;
-                    //（x,y）处没有体素，则该位置以上没有实物，因此（x,y）处的反体素只有一个，上、下表面高度分别为height、0。
                     if (span is not { smin: 0 })
                     {
                         antiSpan.Min = 0;
@@ -1578,15 +1585,15 @@ namespace RecastSharp
                     UnionAntiSpan unionAntiSpan = _unionAntiSpans[index];
 
                     // 对当前体素的上、下、左、右体素进行判断
-                    MergeWithNeighbors(unionAntiSpan, x - 1, z); // 左侧体素
-                    MergeWithNeighbors(unionAntiSpan, x + 1, z); // 右侧体素
-                    MergeWithNeighbors(unionAntiSpan, x, z - 1); // 上方体素
-                    MergeWithNeighbors(unionAntiSpan, x, z + 1); // 下方体素
+                    UnionWithNeighbors(unionAntiSpan, x - 1, z); // 左侧体素
+                    UnionWithNeighbors(unionAntiSpan, x + 1, z); // 右侧体素
+                    UnionWithNeighbors(unionAntiSpan, x, z - 1); // 上方体素
+                    UnionWithNeighbors(unionAntiSpan, x, z + 1); // 下方体素
                 }
             }
         }
 
-        private void MergeWithNeighbors(UnionAntiSpan currentSpan, int neighborX, int neighborZ)
+        private void UnionWithNeighbors(UnionAntiSpan currentSpan, int neighborX, int neighborZ)
         {
             if (IsInRange(neighborX, neighborZ))
             {
@@ -1600,11 +1607,23 @@ namespace RecastSharp
             }
         }
 
+        /// <summary>
+        /// 是否体素下标是否符合范围
+        /// </summary>
+        /// <param name="x"></param>
+        /// <param name="z"></param>
+        /// <returns></returns>
         private bool IsInRange(int x, int z)
         {
             return x >= 0 && x < _solid.width && z >= 0 && z < _solid.height;
         }
 
+        /// <summary>
+        /// 判断两个反体素是否可以连通
+        /// </summary>
+        /// <param name="spanA"></param>
+        /// <param name="spanB"></param>
+        /// <returns></returns>
         private bool SpansCanConnected(UnionAntiSpan spanA, UnionAntiSpan spanB)
         {
             //两个span的高度差小于人物高度，就认为可连通

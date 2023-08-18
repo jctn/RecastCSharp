@@ -5,20 +5,14 @@ namespace RecastSharp
     public class Cluster
     {
         //Boundaries of the cluster (with respect to the original map)
-        public Boundaries Boundaries;
-        public Dictionary<GridTile, Node> Nodes;
+        public readonly Boundaries Boundaries = new();
+        public readonly Dictionary<GridTile, Node> Nodes = new();
 
         //Clusters from the lower level
         public List<Cluster> Clusters;
 
         public int Width;
         public int Height;
-
-        public Cluster()
-        {
-            Boundaries = new Boundaries();
-            Nodes = new Dictionary<GridTile, Node>();
-        }
 
         //Check if this cluster contains the other cluster (by looking at boundaries)
         public bool Contains(Cluster other)

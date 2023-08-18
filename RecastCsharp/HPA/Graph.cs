@@ -18,14 +18,10 @@ namespace RecastSharp
         readonly int width;
         readonly int height;
 
-        //We keep track of added nodes to remove them afterwards
-        List<Node> AddedNodes;
-
         public Graph(int w, int h, int maxLevel, int clusterSize)
         {
             depth = maxLevel;
-            AddedNodes = new List<Node>();
-
+            
             nodes = new Dictionary<GridTile, Node>(w * h);
 
             //1. Create all nodes necessary
@@ -113,10 +109,10 @@ namespace RecastSharp
             //Edge is valid, add it to the node
             n.edges.Add(new Edge()
             {
-                start = n,
-                end = mapNodes[gridTile],
-                type = EdgeType.Inter,
-                weight = weight
+                Start = n,
+                End = mapNodes[gridTile],
+                Type = EdgeType.Inter,
+                Weight = weight
             });
         }
 
@@ -152,14 +148,14 @@ namespace RecastSharp
             foreach (KeyValuePair<GridTile, Node> n in c1.Nodes)
             foreach (Edge e in n.Value.edges)
             {
-                if (e.type == EdgeType.Inter && c2.Contains(e.end.pos))
+                if (e.Type == EdgeType.Inter && c2.Contains(e.End.pos))
                     edges1.Add(e);
             }
 
             foreach (KeyValuePair<GridTile, Node> n in c2.Nodes)
             foreach (Edge e in n.Value.edges)
             {
-                if (e.type == EdgeType.Inter && c1.Contains(e.end.pos))
+                if (e.Type == EdgeType.Inter && c1.Contains(e.End.pos))
                     edges2.Add(e);
             }
 
@@ -168,22 +164,22 @@ namespace RecastSharp
             {
                 foreach (Edge e2 in edges2)
                 {
-                    if (e1.end == e2.start)
+                    if (e1.End == e2.Start)
                     {
-                        if (!p1.Nodes.TryGetValue(e1.start.pos, out n1))
+                        if (!p1.Nodes.TryGetValue(e1.Start.pos, out n1))
                         {
-                            n1 = new Node(e1.start.pos) { child = e1.start };
+                            n1 = new Node(e1.Start.pos) { child = e1.Start };
                             p1.Nodes.Add(n1.pos, n1);
                         }
 
-                        if (!p2.Nodes.TryGetValue(e2.start.pos, out n2))
+                        if (!p2.Nodes.TryGetValue(e2.Start.pos, out n2))
                         {
-                            n2 = new Node(e2.start.pos) { child = e2.start };
+                            n2 = new Node(e2.Start.pos) { child = e2.Start };
                             p2.Nodes.Add(n2.pos, n2);
                         }
 
-                        n1.edges.Add(new Edge() { start = n1, end = n2, type = EdgeType.Inter, weight = 1 });
-                        n2.edges.Add(new Edge() { start = n2, end = n1, type = EdgeType.Inter, weight = 1 });
+                        n1.edges.Add(new Edge() { Start = n1, End = n2, Type = EdgeType.Inter, Weight = 1 });
+                        n2.edges.Add(new Edge() { Start = n2, End = n1, Type = EdgeType.Inter, Weight = 1 });
 
                         break; //Break the second loop since we've found a pair
                     }
@@ -202,8 +198,13 @@ namespace RecastSharp
             for (i = 0; i < clusterHeight; ++i)
             for (j = 0; j < clusterWidth; ++j)
             {
-                clst = new Cluster();
-                clst.Boundaries.Min = new GridTile(j * clusterSize, i * clusterSize);
+                clst = new Cluster
+                {
+                    Boundaries =
+                    {
+                        Min = new GridTile(j * clusterSize, i * clusterSize)
+                    }
+                };
                 clst.Boundaries.Max = new GridTile(
                     Mathf.Min(clst.Boundaries.Min.x + clusterSize - 1, width - 1),
                     Mathf.Min(clst.Boundaries.Min.y + clusterSize - 1, height - 1));
@@ -337,8 +338,8 @@ namespace RecastSharp
                 n2.child = nodes[g2];
             }
 
-            n1.edges.Add(new Edge() { start = n1, end = n2, type = EdgeType.Inter, weight = 1 });
-            n2.edges.Add(new Edge() { start = n2, end = n1, type = EdgeType.Inter, weight = 1 });
+            n1.edges.Add(new Edge() { Start = n1, End = n2, Type = EdgeType.Inter, Weight = 1 });
+            n2.edges.Add(new Edge() { Start = n2, End = n1, Type = EdgeType.Inter, Weight = 1 });
         }
 
         private void DetectAdjacentClusters(Cluster c1, Cluster c2, CreateBorderNodes CreateBorderNodes)
@@ -381,66 +382,65 @@ namespace RecastSharp
                 }
             }
         }
-        
+
         /// <summary>
         /// Connect two nodes by pathfinding between them. 
         /// </summary>
         /// <remarks>We assume they are different nodes. If the path returned is 0, then there is no path that connects them.</remarks>
         private bool ConnectNodes(Node n1, Node n2, Cluster c)
         {
-            LinkedList<Edge> path;
-            LinkedListNode<Edge> iter;
-            Edge e1, e2;
+            // LinkedList<Edge> path;
+            // LinkedListNode<Edge> iter;
+            // Edge e1, e2;
+            //
+            // float weight = 0f;
+            //
+            // path = Pathfinder.FindPath(n1.child, n2.child, c.Boundaries);
+            //
+            // if (path.Count > 0)
+            // {
+            //     e1 = new Edge()
+            //     {
+            //         start = n1,
+            //         end = n2,
+            //         type = EdgeType.Intra,
+            //         UnderlyingPath = path
+            //     };
+            //
+            //     e2 = new Edge()
+            //     {
+            //         start = n2,
+            //         end = n1,
+            //         type = EdgeType.Intra,
+            //         UnderlyingPath = new LinkedList<Edge>()
+            //     };
+            //
+            //     //Store inverse path in node n2
+            //     //Sum weights of underlying edges at the same time
+            //     iter = e1.UnderlyingPath.Last;
+            //     while (iter != null)
+            //     {
+            //         // Find twin edge
+            //         var val = iter.Value.end.edges.Find(
+            //             e => e.start == iter.Value.end && e.end == iter.Value.start);
+            //
+            //         e2.UnderlyingPath.AddLast(val);
+            //         weight += val.weight;
+            //         iter = iter.Previous;
+            //     }
+            //
+            //     //Update weights
+            //     e1.weight = weight;
+            //     e2.weight = weight;
+            //
+            //     n1.edges.Add(e1);
+            //     n2.edges.Add(e2);
+            //
+            //     return true;
+            // }
 
-            float weight = 0f;
-
-            path = Pathfinder.FindPath(n1.child, n2.child, c.Boundaries);
-
-            if (path.Count > 0)
-            {
-                e1 = new Edge()
-                {
-                    start = n1,
-                    end = n2,
-                    type = EdgeType.Intra,
-                    UnderlyingPath = path
-                };
-
-                e2 = new Edge()
-                {
-                    start = n2,
-                    end = n1,
-                    type = EdgeType.Intra,
-                    UnderlyingPath = new LinkedList<Edge>()
-                };
-
-                //Store inverse path in node n2
-                //Sum weights of underlying edges at the same time
-                iter = e1.UnderlyingPath.Last;
-                while (iter != null)
-                {
-                    // Find twin edge
-                    var val = iter.Value.end.edges.Find(
-                        e => e.start == iter.Value.end && e.end == iter.Value.start);
-
-                    e2.UnderlyingPath.AddLast(val);
-                    weight += val.weight;
-                    iter = iter.Previous;
-                }
-
-                //Update weights
-                e1.weight = weight;
-                e2.weight = weight;
-
-                n1.edges.Add(e1);
-                n2.edges.Add(e2);
-
-                return true;
-            } else
-            {
-                //No path, return false
-                return false;
-            }
+            //No path, return false
+            return false;
         }
     }
 }

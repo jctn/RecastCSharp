@@ -194,7 +194,7 @@ namespace RecastSharp
             _colliderVoxelTool.filterLedgeSpans = cvFilterLedgeSpans;
             _colliderVoxelTool.filterWalkableLowHeightSpans = cvFilterWalkableLowHeightSpans;
             //这里的walkablePoint是世界坐标，需要转换成体素坐标
-            _colliderVoxelTool.walkablePoint = new Vector3Int(Mathf.FloorToInt(cvWalkablePoint.x / cvVoxelSize),
+            _colliderVoxelTool.point = new Vector3Int(Mathf.FloorToInt(cvWalkablePoint.x / cvVoxelSize),
                 Mathf.FloorToInt(cvWalkablePoint.y / cvVoxelHeight),
                 Mathf.FloorToInt(cvWalkablePoint.z / cvVoxelSize));
 
@@ -244,8 +244,8 @@ namespace RecastSharp
         }
 
         [FoldoutGroup("Collider Voxel/导出")]
-        [Button("构造联通")]
-        public void BuildConnect()
+        [Button("构造地表体素联通")]
+        public void BuildConnect(Vector2Int start, int showCube = 0)
         {
             GC.Collect();
             if (_colliderVoxelTool is not { buildVoxelSuccess: true })
@@ -254,8 +254,44 @@ namespace RecastSharp
                 return;
             }
 
-            int regionCellSize = Mathf.CeilToInt(cvRegionSize / cvVoxelSize);
-            _colliderVoxelTool.CalculateRegionConnectivity(regionCellSize);
+            _colliderVoxelTool.CalculateConnectivity(start);
+            if (showCube > 0)
+            {
+                UnionAntiSpan span = _colliderVoxelTool.GetUnionAntiSpan(start.x, start.y);
+                if (span == null)
+                {
+                    Debug.LogError($"[VoxelViewer:ShowConnectSpan] span is null");
+                    return;
+                }
+
+                ClearTempSpan();
+
+                for (int z = 0; z <= cvMaxCell.z; ++z)
+                {
+                    for (int x = 0; x <= cvMaxCell.x; ++x)
+                    {
+                        UnionAntiSpan s = _colliderVoxelTool.GetUnionAntiSpan(x, z);
+                        if (s == null) continue;
+                        if (showCube == 1 && !span.AreConnected(s))
+                        {
+                            continue;
+                        }
+
+                        if (showCube == 2 && span.AreConnected(s))
+                        {
+                            continue;
+                        }
+
+                        uint spanNum = _colliderVoxelTool.GetSpans(x, z, SpanBuffer, SpanBufferSize);
+                        if (spanNum == 0) continue;
+                        ushort min = SpanBuffer[0],
+                            max = SpanBuffer[1],
+                            area = SpanBuffer[2];
+                        GameObject cube = SetCube(x, z, 0, min, max, area, cvVoxelSize, connectMat);
+                        _tempVoxelCubeList.Add(cube);
+                    }
+                }
+            }
 
             GC.Collect();
         }
@@ -275,37 +311,6 @@ namespace RecastSharp
 
             GC.Collect();
         }
-
-        [FoldoutGroup("Collider Voxel/导出")]
-        [Button("展示地表Span联通")]
-        public void ShowConnectSpan(Vector2Int start)
-        {
-            GC.Collect();
-            if (_colliderVoxelTool is not { buildVoxelSuccess: true })
-            {
-                Debug.LogError("[VoxelViewer:SaveJsonData] build voxel success first.");
-                return;
-            }
-
-            UnionAntiSpan span = _colliderVoxelTool.GetUnionAntiSpan(start.x, start.y);
-            if (span == null)
-            {
-                Debug.LogError($"[VoxelViewer:ShowConnectSpan] span is null");
-                return;
-            }
-
-            ClearTempSpan();
-
-            while (span != null)
-            {
-                GameObject cube = SetCube(span.x, span.z, 0, 0, span.Min, 0, cvVoxelSize);
-                _tempVoxelCubeList.Add(cube);
-                span = span.Link;
-            }
-
-            GC.Collect();
-        }
-
 
         [FoldoutGroup("Collider Voxel/导出")]
         [Button("Offset测试")]
@@ -641,7 +646,7 @@ namespace RecastSharp
             _navMeshTool.filterLedgeSpans = nmFilterLedgeSpans;
             _navMeshTool.filterWalkableLowHeightSpans = nmFilterWalkableLowHeightSpans;
             //这里的walkablePoint是世界坐标，需要转换成体素坐标
-            _navMeshTool.walkablePoint = new Vector3Int(Mathf.FloorToInt(nmWalkablePoint.x / nmVoxelSize),
+            _navMeshTool.point = new Vector3Int(Mathf.FloorToInt(nmWalkablePoint.x / nmVoxelSize),
                 Mathf.FloorToInt(nmWalkablePoint.y / nmVoxelHeight),
                 Mathf.FloorToInt(nmWalkablePoint.z / nmVoxelSize));
             _navMeshTool.needDebugMergeClosedSpace = nmOpenCheckDebug;
@@ -841,7 +846,7 @@ namespace RecastSharp
             AssetDatabase.Refresh();
         }
 
-        [FoldoutGroup("Nav Mesh")]
+        [FoldoutGroup("Nav Mesh", false)]
         [Button("清除上表面网格")]
         public void ClearVoxelTopMesh()
         {
@@ -914,6 +919,8 @@ namespace RecastSharp
         private static GameObject _voxelCubeRoot;
         private static GameObject _voxelWalkableRoot;
         private static Material _voxelCommonMat;
+        private static Material _connectMat;
+        private static Material _unwalkableMat;
 
         private static Material voxelCommonMat
         {
@@ -929,6 +936,22 @@ namespace RecastSharp
                 return _voxelCommonMat;
             }
         }
+
+        private static Material connectMat
+        {
+            get
+            {
+                if (_connectMat == null)
+                {
+                    _connectMat =
+                        AssetDatabase.LoadAssetAtPath<Material>(
+                            "Packages/com.nemo.game.editor/Res/Voxel/Connect.mat");
+                }
+
+                return _connectMat;
+            }
+        }
+
 
         private static GameObject voxelCubeRoot
         {
@@ -1057,10 +1080,12 @@ namespace RecastSharp
             }
         }
 
-        private GameObject SetCube(int x, int z, int spanIndex, ushort min, ushort max, ushort area, float voxelSize)
+        private GameObject SetCube(int x, int z, int spanIndex, ushort min, ushort max, ushort area, float voxelSize,
+            Material material = null)
         {
             float logicMin = min * cvVoxelHeight, loginMax = max * cvVoxelHeight;
             GameObject cubeObj = _walkableCubePool.Get();
+            cubeObj.GetComponent<MeshRenderer>().sharedMaterial = material == null ? voxelCommonMat : material;
             cubeObj.name = $"{x}_{z}_{spanIndex}_{area}";
             cubeObj.transform.localScale = new Vector3(voxelSize - 0.05f, loginMax - logicMin, voxelSize - 0.05f);
             cubeObj.transform.localPosition = new Vector3((float)(x + 0.5) * voxelSize,
