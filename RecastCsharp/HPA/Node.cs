@@ -10,7 +10,7 @@ namespace RecastSharp
 
         public Node(GridTile value)
         {
-            this.pos = value;
+            pos = value;
             edges = new List<Edge>();
         }
     }

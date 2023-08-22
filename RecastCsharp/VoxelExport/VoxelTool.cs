@@ -489,6 +489,9 @@ namespace RecastSharp
             _chf = null;
             _buildVoxelSuccess = false;
             _mergeSpanSuccess = false;
+            _unionAntiSpans = null;
+            _connectFlags = null;
+            graph = null;
         }
 
         public void TestOffset(int cellX, int cellY)
@@ -604,7 +607,7 @@ namespace RecastSharp
 
         public bool SaveClientData(string binDirPath, string jsonDirPath, int regionSize)
         {
-            if (_solid == null)
+            if (_solid == null || graph == null)
             {
                 return false;
             }
@@ -631,12 +634,12 @@ namespace RecastSharp
                 region.cellHeightNum = (ushort)(cy + regionSize <= _solid.height ? regionSize : _solid.height - cy);
 
                 int cellCount = region.cellHeightNum * region.cellWidthNum;
+                region.cellConnectFlags = new byte[cellCount];
                 VoxelSpan[][] regionCellSpans = new VoxelSpan[cellCount][];
                 cellSpans[i] = regionCellSpans;
 
                 int totalSpanNum = 0;
                 uint tmpCellIdx = 0;
-                byte offset;
                 for (int y = 0; y < region.cellHeightNum; ++y)
                 {
                     var cellY = y + cy;
@@ -645,6 +648,7 @@ namespace RecastSharp
                         var cellX = x + cx;
                         byte spNum = 0;
                         int realIndex = cellX + cellY * _solid.width;
+                        region.cellConnectFlags[tmpCellIdx] = _connectFlags[realIndex];
                         for (Recast.rcSpan s = _solid.spans[realIndex]; s != null; s = s.next)
                         {
                             spNum++;
@@ -661,7 +665,7 @@ namespace RecastSharp
                                 float raycastY = topHeight + raycastYOffset;
                                 float realHeight =
                                     GetVoxelSpanRealHeight(cellX, cellY, clientMapVoxel.voxelSize, raycastY);
-                                offset = 0;
+                                byte offset = 0;
                                 //realHeight==0表示，5个点，都拿不到高度或者就是贴着Y轴0点，这种情况下，不需要偏移
                                 if (realHeight != 0)
                                 {
@@ -856,6 +860,47 @@ namespace RecastSharp
             writer.Write(clientMapVoxel.regionNum);
             writer.Write(clientMapVoxel.regionWidth);
             writer.Write(clientMapVoxel.regionHeight);
+
+            List<Cluster> clusters = graph.levelClusters?.First();
+            if (clusters == null)
+            {
+                Debug.LogError("clusters is null!!!!");
+                return;
+            }
+
+            HashSet<GridTile> visited = new HashSet<GridTile>();
+            List<Edge> edges = new List<Edge>(10);
+            foreach (Cluster c in clusters)
+            {
+                edges.Clear();
+                foreach (KeyValuePair<GridTile, Node> node in c.Nodes)
+                {
+                    visited.Add(node.Key);
+                    foreach (Edge e in node.Value.edges)
+                    {
+                        if (!visited.Contains(e.End.pos))
+                        {
+                            edges.Add(e);
+                        }
+                    }
+                }
+
+                writer.Write(edges.Count);
+                //优化，节省空间，只存储起点，因为每个edges的起点都是同一个
+                if (edges.Count > 0)
+                {
+                    writer.Write(edges[0].Start.pos.x);
+                    writer.Write(edges[0].Start.pos.y);
+                }
+
+                foreach (Edge edge in edges)
+                {
+                    writer.Write(edge.End.pos.x);
+                    writer.Write(edge.End.pos.y);
+                    writer.Write((byte)edge.Type);
+                    writer.Write(edge.Weight);
+                }
+            }
         }
 
         /// <summary>
@@ -934,6 +979,11 @@ namespace RecastSharp
                 writer.Write(span.Min);
                 writer.Write(span.Max);
                 writer.Write(span.Offset);
+            }
+
+            foreach (byte connectFlag in region.cellConnectFlags)
+            {
+                writer.Write(connectFlag);
             }
         }
 
@@ -1483,10 +1533,14 @@ namespace RecastSharp
         private UnionAntiSpan[] _unionAntiSpans;
         private Byte[] _connectFlags; //用于记录连通性的标记，0为不连通，1为连通
 
+        public Graph graph { get; private set; } //HPA graph
+
         /// <summary>
         /// 计算地面体素连通性
         /// </summary>
-        public void CalculateConnectivity(Vector2Int point)
+        /// <param name="wp">可走格子点</param>
+        /// <param name="clusterSize">区域大小</param>
+        public void CalculateConnectivity(Vector2Int wp, int clusterSize)
         {
             //一定要确保的合并过封闭空间体素，这样的话， 场景的所有反体素都是可走的，这样的话，就可以通过反体素的连通性来计算板块的连通性
             if (!_mergeSpanSuccess)
@@ -1501,7 +1555,7 @@ namespace RecastSharp
             int w = _solid.width;
             int h = _solid.height;
             _connectFlags = new byte[w * h];
-            UnionAntiSpan walkableSpan = _unionAntiSpans[point.x + point.y * w];
+            UnionAntiSpan walkableSpan = _unionAntiSpans[wp.x + wp.y * w];
             for (int z = 0; z < h; z++)
             {
                 for (int x = 0; x < w; x++)
@@ -1514,6 +1568,9 @@ namespace RecastSharp
                     }
                 }
             }
+
+            //构造HPA对应的Graph
+            graph = new Graph(w, h, 1, clusterSize, _connectFlags);
         }
 
         public UnionAntiSpan GetUnionAntiSpan(int x, int z)

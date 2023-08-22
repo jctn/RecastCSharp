@@ -2,6 +2,9 @@
 
 namespace RecastSharp
 {
+    /// <summary>
+    /// Domain-independent, rectangular clusters
+    /// </summary>
     public class Cluster
     {
         //Boundaries of the cluster (with respect to the original map)

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 using Sirenix.OdinInspector;
 using UnityEditor;
@@ -9,6 +10,7 @@ using UnityEngine.AI;
 using UnityEngine.Pool;
 using UnityEngine.Rendering;
 using UnityEngine.Serialization;
+using Random = UnityEngine.Random;
 
 namespace RecastSharp
 {
@@ -243,9 +245,81 @@ namespace RecastSharp
             GC.Collect();
         }
 
+        private GameObject _graphRoot;
+        private GameObject _clusters;
+        private GameObject _nodes;
+        private GameObject _edges;
+        private ObjectPool<LineRenderer> _pool;
+        private List<LineRenderer> _gettedLineRenderers = new();
+        private LineRenderer _lineRenderer;
+
+        private LineRenderer lineRenderer
+        {
+            get
+            {
+                if (_lineRenderer == null)
+                {
+                    GameObject obj =
+                        AssetDatabase.LoadAssetAtPath<GameObject>(
+                            "Packages/com.nemo.game.editor/Res/Voxel/Line.prefab");
+                    _lineRenderer = obj.GetComponent<LineRenderer>();
+                }
+
+                return _lineRenderer;
+            }
+        }
+
+        private void DefineLineRendererPool()
+        {
+            if (_pool != null)
+            {
+                return;
+            }
+
+            _pool = new ObjectPool<LineRenderer>(() => Instantiate(lineRenderer),
+                lr => { lr.gameObject.SetActive(true); }, lr =>
+                {
+                    lr.gameObject.SetActive(false);
+                    lr.enabled = false;
+                },
+                lr => { Destroy(lr.gameObject); }, true, 10);
+        }
+
+        private void ResetAllLineRenderers()
+        {
+            if (_gettedLineRenderers.Count <= 0) return;
+
+            foreach (var element in _gettedLineRenderers)
+            {
+                element.enabled = false;
+                _pool.Release(element);
+            }
+
+            _gettedLineRenderers.Clear();
+        }
+
+        public LineRenderer GetLineRenderer()
+        {
+            var item = _pool.Get();
+            _gettedLineRenderers.Add(item);
+            return item;
+        }
+
+        public void ReleaseLineRenderer(LineRenderer lr)
+        {
+            if (!_gettedLineRenderers.Contains(lr)) return;
+
+            _pool.Release(lr);
+            _gettedLineRenderers.Remove(lr);
+        }
+
+        [FoldoutGroup("Collider Voxel/导出")] [LabelText("地表必联通的体素下标")]
+        public Vector2Int connectVoxelIndex =
+            Vector2Int.zero;
+
         [FoldoutGroup("Collider Voxel/导出")]
         [Button("构造地表体素联通")]
-        public void BuildConnect(Vector2Int start, int showCube = 0)
+        public void BuildConnect()
         {
             GC.Collect();
             if (_colliderVoxelTool is not { buildVoxelSuccess: true })
@@ -254,47 +328,222 @@ namespace RecastSharp
                 return;
             }
 
-            _colliderVoxelTool.CalculateConnectivity(start);
-            if (showCube > 0)
-            {
-                UnionAntiSpan span = _colliderVoxelTool.GetUnionAntiSpan(start.x, start.y);
-                if (span == null)
-                {
-                    Debug.LogError($"[VoxelViewer:ShowConnectSpan] span is null");
-                    return;
-                }
+            int regionCellSize = Mathf.CeilToInt(cvRegionSize / cvVoxelSize);
+            _colliderVoxelTool.CalculateConnectivity(connectVoxelIndex, regionCellSize);
+            // 下面的代码是显示联通区域
+            // if (showCube > 0)
+            // {
+            //     UnionAntiSpan span = _colliderVoxelTool.GetUnionAntiSpan(start.x, start.y);
+            //     if (span == null)
+            //     {
+            //         Debug.LogError($"[VoxelViewer:ShowConnectSpan] span is null");
+            //         return;
+            //     }
+            //
+            //     ClearTempSpan();
+            //
+            //     for (int z = 0; z <= cvMaxCell.z; ++z)
+            //     {
+            //         for (int x = 0; x <= cvMaxCell.x; ++x)
+            //         {
+            //             UnionAntiSpan s = _colliderVoxelTool.GetUnionAntiSpan(x, z);
+            //             if (s == null) continue;
+            //             if (showCube == 1 && !span.AreConnected(s))
+            //             {
+            //                 continue;
+            //             }
+            //
+            //             if (showCube == 2 && span.AreConnected(s))
+            //             {
+            //                 continue;
+            //             }
+            //
+            //             uint spanNum = _colliderVoxelTool.GetSpans(x, z, SpanBuffer, SpanBufferSize);
+            //             if (spanNum == 0) continue;
+            //             ushort min = SpanBuffer[0],
+            //                 max = SpanBuffer[1],
+            //                 area = SpanBuffer[2];
+            //             GameObject cube = SetCube(x, z, 0, min, max, area, cvVoxelSize, connectMat);
+            //             _tempVoxelCubeList.Add(cube);
+            //         }
+            //     }
+            // }
 
-                ClearTempSpan();
 
-                for (int z = 0; z <= cvMaxCell.z; ++z)
-                {
-                    for (int x = 0; x <= cvMaxCell.x; ++x)
-                    {
-                        UnionAntiSpan s = _colliderVoxelTool.GetUnionAntiSpan(x, z);
-                        if (s == null) continue;
-                        if (showCube == 1 && !span.AreConnected(s))
-                        {
-                            continue;
-                        }
-
-                        if (showCube == 2 && span.AreConnected(s))
-                        {
-                            continue;
-                        }
-
-                        uint spanNum = _colliderVoxelTool.GetSpans(x, z, SpanBuffer, SpanBufferSize);
-                        if (spanNum == 0) continue;
-                        ushort min = SpanBuffer[0],
-                            max = SpanBuffer[1],
-                            area = SpanBuffer[2];
-                        GameObject cube = SetCube(x, z, 0, min, max, area, cvVoxelSize, connectMat);
-                        _tempVoxelCubeList.Add(cube);
-                    }
-                }
-            }
+            DrawClusters();
 
             GC.Collect();
         }
+
+        private void DeleteClusters()
+        {
+            if (_clusters != null)
+            {
+                DestroyImmediate(_clusters);
+            }
+
+            if (_nodes != null)
+            {
+                DestroyImmediate(_nodes);
+            }
+
+            if (_edges != null)
+            {
+                DestroyImmediate(_edges);
+            }
+        }
+
+        private void DrawClusters()
+        {
+            if (_graphRoot == null)
+            {
+                _graphRoot = new GameObject("GraphRoot");
+            }
+
+            List<Cluster> clusters = _colliderVoxelTool.graph?.levelClusters?.First();
+            if (clusters == null)
+            {
+                Debug.LogError("[VoxelViewer:DrawClusters] clusters is null.");
+                return;
+            }
+
+            DeleteClusters();
+            _clusters = new GameObject("Clusters");
+            _clusters.transform.SetParent(_graphRoot.transform, false);
+            _nodes = new GameObject("Nodes");
+            _nodes.transform.SetParent(_graphRoot.transform, false);
+            _edges = new GameObject("Edges");
+            _edges.transform.SetParent(_graphRoot.transform, false);
+            DrawVoxelGrid();
+            HashSet<GridTile> visited = new HashSet<GridTile>();
+            DefineLineRendererPool();
+            ResetAllLineRenderers();
+            foreach (Cluster c in clusters)
+            {
+                DrawCluster(c);
+
+                foreach (KeyValuePair<GridTile, Node> node in c.Nodes)
+                {
+                    visited.Add(node.Key);
+
+                    //Draw Edges
+                    foreach (Edge e in node.Value.edges)
+                    {
+                        if (!visited.Contains(e.End.pos))
+                        {
+                            LineRenderer line = GetLineRenderer();
+                            //Draw the edge
+                            line.SetPosition(0, new Vector3((e.Start.pos.x + 0.5f) * cvVoxelSize, 1,
+                                (e.Start.pos.y + 0.5f) * cvVoxelSize));
+                            line.SetPosition(1, new Vector3(
+                                (e.End.pos.x + 0.5f) * cvVoxelSize, 1,
+                                (e.End.pos.y + 0.5f) * cvVoxelSize));
+                            line.gameObject.transform.SetParent(_edges.transform);
+                        }
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// 渲染体素网格
+        /// </summary>
+        private void DrawVoxelGrid()
+        {
+            int vertexCount = (cvMaxCell.x + 1) * (cvMaxCell.z + 1);
+            Vector3[] vertices = new Vector3[vertexCount];
+
+            int vertIndex = 0;
+            for (int x = 0; x <= cvMaxCell.x; x++)
+            {
+                for (int y = 0; y <= cvMaxCell.z; y++)
+                {
+                    vertices[vertIndex] = new Vector3(x * cvVoxelSize, 0, y * cvVoxelSize);
+                    vertIndex++;
+                }
+            }
+
+            int[] triangles = new int[cvMaxCell.x * cvMaxCell.z * 6]; // Assuming each cell is made of 2 triangles
+
+            int index = 0;
+            for (int x = 0; x < cvMaxCell.x; x++)
+            {
+                for (int y = 0; y < cvMaxCell.z; y++)
+                {
+                    int baseIndex = x * (cvMaxCell.z + 1) + y;
+                    triangles[index++] = baseIndex;
+                    triangles[index++] = baseIndex + 1;
+                    triangles[index++] = baseIndex + cvMaxCell.z + 1;
+
+                    triangles[index++] = baseIndex + 1;
+                    triangles[index++] = baseIndex + cvMaxCell.z + 2;
+                    triangles[index++] = baseIndex + cvMaxCell.z + 1;
+                }
+            }
+
+            Mesh mesh = GenerateMesh("VoxelGrid", vertices, triangles);
+            GameObject meshObj = new GameObject("VoxelGrid");
+            meshObj.transform.parent = _nodes.transform;
+            MeshFilter filter = meshObj.AddComponent<MeshFilter>();
+            filter.mesh = mesh;
+            MeshRenderer meshRenderer = meshObj.AddComponent<MeshRenderer>();
+            Material[] materials = new Material[mesh.subMeshCount];
+            Array.Fill(materials, graphMat);
+            meshRenderer.materials = materials;
+        }
+
+        private void DrawCluster(Cluster c)
+        {
+            int vertexCount = c.Nodes.Count;
+            Vector3[] vertices = new Vector3[vertexCount * 4];
+            Color[] colors = new Color[vertexCount * 4];
+            int[] triangles = new int[vertexCount * 6];
+            int vertexNum = 0;
+            int triangleNum = 0;
+            Color randomColor = new Color(Random.value, Random.value, Random.value);
+            //2. Draw edges
+            foreach (KeyValuePair<GridTile, Node> node in c.Nodes)
+            {
+                GridTile gridTile = node.Key;
+                // point0
+                Vector3 v0 = new Vector3((gridTile.x + 0) * cvVoxelSize, 0, (gridTile.y + 0) * cvVoxelSize);
+                vertices[vertexNum] = v0;
+                colors[vertexNum] = randomColor;
+                // point1
+                Vector3 v1 = new Vector3((gridTile.x + 1) * cvVoxelSize, 0, (gridTile.y + 1) * cvVoxelSize);
+                vertices[vertexNum + 1] = v1;
+                colors[vertexNum + 1] = randomColor;
+                // point2
+                Vector3 v2 = new Vector3((gridTile.x + 1) * cvVoxelSize, 0, (gridTile.y + 0) * cvVoxelSize);
+                vertices[vertexNum + 2] = v2;
+                colors[vertexNum + 2] = randomColor;
+                // point3
+                Vector3 v3 = new Vector3((gridTile.x + 0) * cvVoxelSize, 0, (gridTile.y + 1) * cvVoxelSize);
+                vertices[vertexNum + 3] = v3;
+                colors[vertexNum + 3] = randomColor;
+
+                triangles[triangleNum] = vertexNum + 0;
+                triangles[triangleNum + 1] = vertexNum + 1;
+                triangles[triangleNum + 2] = vertexNum + 2;
+                triangles[triangleNum + 3] = vertexNum + 1;
+                triangles[triangleNum + 4] = vertexNum + 0;
+                triangles[triangleNum + 5] = vertexNum + 3;
+
+                vertexNum += 4;
+                triangleNum += 6;
+            }
+
+            Mesh mesh = GenerateMesh("Cluster", vertices, triangles);
+            GameObject meshObj = new GameObject("Cluster");
+            meshObj.transform.parent = _clusters.transform;
+            MeshFilter filter = meshObj.AddComponent<MeshFilter>();
+            filter.mesh = mesh;
+            MeshRenderer meshRenderer = meshObj.AddComponent<MeshRenderer>();
+            Material[] materials = new Material[mesh.subMeshCount];
+            Array.Fill(materials, nodeMat);
+            meshRenderer.materials = materials;
+        }
+
 
         [FoldoutGroup("Collider Voxel/导出")]
         [Button("测试地表Span联通")]
@@ -377,6 +626,12 @@ namespace RecastSharp
             if (_colliderVoxelTool is not { buildVoxelSuccess: true })
             {
                 Debug.LogError("[VoxelViewer:SaveClientData] build voxel success first.");
+                return;
+            }
+
+            if (_colliderVoxelTool.graph == null)
+            {
+                Debug.LogError("[VoxelViewer:SaveClientData] graph is null.请先构造联通数据");
                 return;
             }
 
@@ -529,36 +784,45 @@ namespace RecastSharp
         private VoxelTool _navMeshTool;
 
         [FoldoutGroup("Nav Mesh")] [LabelText("NavMesh体素大小(长宽)")] [Range(0.01f, 5.0f)]
-        public float nmVoxelSize = 0.15f;
+        public float nmVoxelSize =
+            0.15f;
 
         [FoldoutGroup("Nav Mesh")] [LabelText("NavMesh体素高度")] [Range(0.01f, 5.0f)]
-        public float nmVoxelHeight = 0.01f;
+        public float nmVoxelHeight =
+            0.01f;
 
         [FoldoutGroup("Nav Mesh")] [LabelText("NavMesh体素格子范围"), ReadOnly]
-        public Vector3Int nmMaxCell = Vector3Int.zero;
+        public Vector3Int nmMaxCell =
+            Vector3Int.zero;
 
         [FoldoutGroup("Nav Mesh")] [LabelText("Agent Height")] [Range(0.0f, 10.0f)]
-        public float nmAgentHeight = 1.0f;
+        public float nmAgentHeight =
+            1.0f;
 
         [FoldoutGroup("Nav Mesh")] [LabelText("Agent Radius")] [Range(0.0f, 10.0f)]
-        public float nmAgentRadius = 0.5f;
+        public float nmAgentRadius =
+            0.5f;
 
         [FoldoutGroup("Nav Mesh")] [LabelText("Climb Height")] [Range(0.0f, 999.0f)]
-        public float nmClimbHeight = 0.5f;
+        public float nmClimbHeight =
+            0.5f;
 
         [FoldoutGroup("Nav Mesh")] [LabelText("Max Slope")] [Range(0.0f, 60.0f)]
-        public float nmMaxSlope = 60.0f;
+        public float nmMaxSlope =
+            60.0f;
 
         [FoldoutGroup("Nav Mesh/过滤")]
         [LabelText("Filter Low Hanging Obstacles"), Tooltip("体素上表面之差小于walkClimb,上面的体素变为可行走,过滤悬空的可走障碍物")]
-        public bool nmFilterLowHangingObstacles = true;
+        public bool nmFilterLowHangingObstacles =
+            true;
 
         [FoldoutGroup("Nav Mesh/过滤")] [LabelText("Filter Ledge Spans"), Tooltip("体素与邻居体素上表面之差超过这个高度，则变为不可走")]
         public bool nmFilterLedgeSpans;
 
         [FoldoutGroup("Nav Mesh/过滤")]
         [LabelText("Filter Walkable Low Height Spans"), Tooltip("上下体素之间空隙高度小于walkHeight，下体素变为不可行走")]
-        public bool nmFilterWalkableLowHeightSpans = true;
+        public bool nmFilterWalkableLowHeightSpans =
+            true;
 
 
         [FoldoutGroup("Nav Mesh/优化")] [LabelText("地图中必定可到达的坐标点(世界坐标)")]
@@ -573,6 +837,8 @@ namespace RecastSharp
         private GameObject _voxelTopMeshObj;
         private Material _voxelTopMeshMat;
         private Material _navMeshMat;
+        private Material _graphMat;
+        private Material _nodeMat;
 
         private void CreateVoxelTopMeshObj()
         {
@@ -605,10 +871,39 @@ namespace RecastSharp
                 if (_voxelTopMeshMat == null)
                 {
                     _voxelTopMeshMat =
-                        AssetDatabase.LoadAssetAtPath<Material>("Packages/com.nemo.game.editor/Res/Voxel/NavMesh.mat");
+                        AssetDatabase.LoadAssetAtPath<Material>(
+                            "Packages/com.nemo.game.editor/Res/Voxel/VoxelTopMesh.mat");
                 }
 
                 return _voxelTopMeshMat;
+            }
+        }
+
+        private Material graphMat
+        {
+            get
+            {
+                if (_graphMat == null)
+                {
+                    _graphMat =
+                        AssetDatabase.LoadAssetAtPath<Material>("Packages/com.nemo.game.editor/Res/Voxel/Graph.mat");
+                }
+
+                return _graphMat;
+            }
+        }
+
+        private Material nodeMat
+        {
+            get
+            {
+                if (_nodeMat == null)
+                {
+                    _nodeMat =
+                        AssetDatabase.LoadAssetAtPath<Material>("Packages/com.nemo.game.editor/Res/Voxel/Node.mat");
+                }
+
+                return _nodeMat;
             }
         }
 
@@ -619,7 +914,7 @@ namespace RecastSharp
                 if (_navMeshMat == null)
                 {
                     _navMeshMat =
-                        AssetDatabase.LoadAssetAtPath<Material>("Packages/com.nemo.game.editor/Res/Voxel/PolyMesh.mat");
+                        AssetDatabase.LoadAssetAtPath<Material>("Packages/com.nemo.game.editor/Res/Voxel/NavMesh.mat");
                 }
 
                 return _navMeshMat;
@@ -792,7 +1087,7 @@ namespace RecastSharp
         }
 
 
-        private Mesh GenerateMesh(string meshName, Vector3[] vertices, int[] triangles)
+        private Mesh GenerateMesh(string meshName, Vector3[] vertices, int[] triangles, Color[] colors = null)
         {
             // 创建网格对象并设置顶点和三角形数据
             Mesh mesh = new Mesh
@@ -802,6 +1097,11 @@ namespace RecastSharp
             };
             mesh.vertices = vertices;
             mesh.triangles = triangles;
+            if (colors != null)
+            {
+                mesh.colors = colors;
+            }
+
             // 更新网格
             mesh.RecalculateBounds();
             mesh.RecalculateNormals();
@@ -920,7 +1220,6 @@ namespace RecastSharp
         private static GameObject _voxelWalkableRoot;
         private static Material _voxelCommonMat;
         private static Material _connectMat;
-        private static Material _unwalkableMat;
 
         private static Material voxelCommonMat
         {
@@ -1157,6 +1456,16 @@ namespace RecastSharp
             }
         }
 
+        /// <summary>
+        /// 显示包围盒内体素格子
+        /// </summary>
+        /// <param name="minX"></param>
+        /// <param name="maxX"></param>
+        /// <param name="minZ"></param>
+        /// <param name="maxZ"></param>
+        /// <param name="targetTool"></param>
+        /// <param name="voxelSize"></param>
+        /// <param name="justShowFirst"></param>
         private void ShowCellInBoundingBox(int minX, int maxX, int minZ, int maxZ, VoxelTool targetTool,
             float voxelSize, bool justShowFirst)
         {
@@ -1181,6 +1490,11 @@ namespace RecastSharp
 
 
         private readonly List<GameObject> _tempVoxelCubeList = new();
+
+        public VoxelBuildTool(LineRenderer lineRenderer)
+        {
+            this._lineRenderer = lineRenderer;
+        }
 
         [FoldoutGroup("调试")]
         [Button("显示指定体素")]

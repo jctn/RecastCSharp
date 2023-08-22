@@ -40,6 +40,7 @@ namespace RecastSharp
         public byte[] cellSpanCountArr;
         public uint[] cellSpanIndexArr;
         public VoxelSpan[] spans;
+        public byte[] cellConnectFlags;
     }
 
     public class JsonMapVoxel
